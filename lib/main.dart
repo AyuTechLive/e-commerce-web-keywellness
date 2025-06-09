@@ -1,3 +1,4 @@
+// main.dart - Updated with Payment Verification Route
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
@@ -16,8 +17,10 @@ import 'package:keiwaywellness/screens/home_screen.dart';
 import 'package:keiwaywellness/screens/login_screen.dart';
 import 'package:keiwaywellness/screens/order_success_screen.dart';
 import 'package:keiwaywellness/screens/product_detail_screen.dart';
+import 'package:keiwaywellness/screens/product_screen.dart';
 import 'package:keiwaywellness/screens/profile_screen.dart';
 import 'package:keiwaywellness/screens/register_screen.dart';
+import 'package:keiwaywellness/screens/payment_verification_screen.dart'; // Add this import
 import 'package:provider/provider.dart';
 
 void main() async {
@@ -44,9 +47,8 @@ class MyApp extends StatelessWidget {
             theme: ThemeData(
               primarySwatch: Colors.green,
               primaryColor: const Color(0xFF2E7D32),
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xFF2E7D32),
-              ),
+              colorScheme:
+                  ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
               appBarTheme: const AppBarTheme(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
@@ -91,9 +93,21 @@ final GoRouter _router = GoRouter(
       path: '/checkout',
       builder: (context, state) => const CheckoutScreen(),
     ),
+    // ADD THIS ROUTE - Payment Verification Screen
+    GoRoute(
+      path: '/payment-verification/:orderId',
+      builder: (context, state) {
+        final orderId = state.pathParameters['orderId']!;
+        return PaymentVerificationScreen(orderId: orderId);
+      },
+    ),
     GoRoute(
       path: '/order-success',
       builder: (context, state) => const OrderSuccessScreen(),
+    ),
+    GoRoute(
+      path: '/products',
+      builder: (context, state) => const AllProductsScreen(),
     ),
     GoRoute(
       path: '/profile',
@@ -115,4 +129,27 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const AdminDashboard(),
     ),
   ],
+  errorBuilder: (context, state) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              'Page not found: ${state.matchedLocation}',
+              style: const TextStyle(fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => context.go('/'),
+              child: const Text('Go Home'),
+            ),
+          ],
+        ),
+      ),
+    );
+  },
 );
