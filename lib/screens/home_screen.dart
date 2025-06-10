@@ -1,15 +1,12 @@
-// screens/home_screen.dart - Mobile Responsive Version
 import 'package:flutter/material.dart';
-import 'package:keiwaywellness/widgets/category_product_card.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../providers/auth_provider.dart';
-import '../providers/cart_provider.dart';
 import '../providers/product_provider.dart';
 import '../providers/category_provider.dart';
 import '../widgets/app_bar_widget.dart';
 import '../widgets/product_card.dart';
+import '../widgets/category_product_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -19,9 +16,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  final TextEditingController _searchController = TextEditingController();
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  final PageController _bannerController = PageController();
+  int _currentBannerIndex = 0;
 
   @override
   void initState() {
@@ -34,12 +32,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
     _fadeController.forward();
+    _startBannerAutoSlide();
+  }
+
+  void _startBannerAutoSlide() {
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) {
+        _nextBanner();
+        _startBannerAutoSlide();
+      }
+    });
+  }
+
+  void _nextBanner() {
+    if (_currentBannerIndex < 2) {
+      _currentBannerIndex++;
+    } else {
+      _currentBannerIndex = 0;
+    }
+    _bannerController.animateToPage(
+      _currentBannerIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.dispose();
+    _bannerController.dispose();
     super.dispose();
   }
 
@@ -47,20 +68,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFBFC),
-      appBar: const CustomAppBar(),
-      body: SingleChildScrollView(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
+      appBar: const CustomAppBar(currentRoute: '/'),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeroSection(),
-              _buildSearchSection(),
-              _buildStatsSection(),
+              _buildHeroBannerSection(),
+              _buildQuickStatsSection(),
               _buildCategoriesSection(),
               _buildFeaturedProductsSection(),
+              _buildDealsSection(),
               _buildNewsletterSection(),
-              _buildFooter(),
+              _buildFooterSection(),
             ],
           ),
         ),
@@ -68,199 +88,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildHeroSection() {
+  Widget _buildHeroBannerSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isMobile = constraints.maxWidth < 768;
-        final bool isTablet =
-            constraints.maxWidth >= 768 && constraints.maxWidth < 1024;
+        final double height = isMobile ? 300 : 450;
 
         return Container(
-          height: isMobile ? 350 : (isTablet ? 400 : 500),
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Color(0xFF1A365D), // Deep navy blue
-                Color(0xFF2B6CB0), // Rich blue
-                Color(0xFF3182CE), // Bright blue
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Stack(
+          height: height,
+          child: PageView(
+            controller: _bannerController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentBannerIndex = index;
+              });
+            },
             children: [
-              // Geometric background pattern
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: GeometricPatternPainter(),
+              _buildBannerSlide(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                title: 'Premium Quality Products',
+                subtitle: 'Discover our curated collection',
+                buttonText: 'Shop Now',
+                isMobile: isMobile,
               ),
-              // Content overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withOpacity(0.3),
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                  ),
+              _buildBannerSlide(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                title: 'Exclusive Deals',
+                subtitle: 'Up to 70% off on selected items',
+                buttonText: 'View Deals',
+                isMobile: isMobile,
               ),
-              // Hero image - Only show on larger screens
-              if (!isMobile)
-                Positioned(
-                  right: -50,
-                  top: 50,
-                  bottom: 50,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.45,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                            'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800'),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
+              _buildBannerSlide(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              // Hero content
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                right: isMobile ? 0 : MediaQuery.of(context).size.width * 0.4,
-                child: Padding(
-                  padding: EdgeInsets.all(isMobile ? 20 : (isTablet ? 30 : 50)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEDF2F7),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          '✨ Premium Quality',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF4A5568),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: isMobile ? 16 : 24),
-                      Text(
-                        isMobile
-                            ? 'Elevate Your\nWellness'
-                            : 'Elevate Your\nWellness Journey',
-                        style: TextStyle(
-                          fontSize: isMobile ? 36 : (isTablet ? 44 : 52),
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1.1,
-                          letterSpacing: -1,
-                        ),
-                      ),
-                      SizedBox(height: isMobile ? 12 : 20),
-                      Text(
-                        isMobile
-                            ? 'Discover wellness products that transform your daily routine.'
-                            : 'Discover scientifically-backed wellness products\nthat transform your daily routine into a path\ntoward optimal health and vitality.',
-                        style: TextStyle(
-                          fontSize: isMobile ? 14 : 18,
-                          color: const Color(0xFFE2E8F0),
-                          height: 1.6,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      SizedBox(height: isMobile ? 24 : 40),
-                      Flex(
-                        direction: isMobile ? Axis.vertical : Axis.horizontal,
-                        children: [
-                          ElevatedButton(
-                            onPressed: () {
-                              // Scroll to products section
-                              Scrollable.ensureVisible(
-                                context,
-                                duration: const Duration(milliseconds: 500),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00D4AA),
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: isMobile ? 24 : 32,
-                                  vertical: isMobile ? 14 : 18),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 8,
-                              shadowColor:
-                                  const Color(0xFF00D4AA).withOpacity(0.3),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Shop Collection',
-                                  style: TextStyle(
-                                      fontSize: isMobile ? 14 : 16,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.arrow_forward_rounded,
-                                    size: 18),
-                              ],
-                            ),
-                          ),
-                          SizedBox(
-                            width: isMobile ? 0 : 16,
-                            height: isMobile ? 12 : 0,
-                          ),
-                          OutlinedButton(
-                            onPressed: () {
-                              context.go('/about');
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(
-                                  color: Colors.white, width: 2),
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: isMobile ? 24 : 24,
-                                  vertical: isMobile ? 14 : 18),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              'Learn More',
-                              style: TextStyle(
-                                  fontSize: isMobile ? 14 : 16,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                title: 'Fast Delivery',
+                subtitle: 'Free shipping on orders above ₹999',
+                buttonText: 'Learn More',
+                isMobile: isMobile,
               ),
             ],
           ),
@@ -269,182 +144,282 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSearchSection() {
+  Widget _buildBannerSlide({
+    required Gradient gradient,
+    required String title,
+    required String subtitle,
+    required String buttonText,
+    required bool isMobile,
+  }) {
+    return Container(
+      decoration: BoxDecoration(gradient: gradient),
+      child: Stack(
+        children: [
+          // Background Pattern
+          Positioned.fill(
+            child: CustomPaint(
+              painter: GeometricPatternPainter(),
+            ),
+          ),
+
+          // Content
+          Padding(
+            padding: EdgeInsets.all(isMobile ? 20 : 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: isMobile
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
+              children: [
+                if (!isMobile) const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    '✨ Premium Collection',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: isMobile ? 32 : 48,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    height: 1.1,
+                  ),
+                  textAlign: isMobile ? TextAlign.center : TextAlign.left,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: isMobile ? 16 : 18,
+                    color: Colors.white70,
+                    height: 1.5,
+                  ),
+                  textAlign: isMobile ? TextAlign.center : TextAlign.left,
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: isMobile
+                      ? MainAxisAlignment.center
+                      : MainAxisAlignment.start,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => context.go('/products'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black87,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 24 : 32,
+                          vertical: isMobile ? 12 : 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        elevation: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            buttonText,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded),
+                        ],
+                      ),
+                    ),
+                    if (!isMobile) ...[
+                      const SizedBox(width: 16),
+                      OutlinedButton(
+                        onPressed: () => context.go('/about'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white, width: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
+                        child: const Text(
+                          'Learn More',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (!isMobile) const Spacer(),
+              ],
+            ),
+          ),
+
+          // Page Indicators
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: _buildPageIndicators(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPageIndicators() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(3, (index) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: _currentBannerIndex == index ? 24 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: _currentBannerIndex == index
+                ? Colors.white
+                : Colors.white.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildQuickStatsSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isMobile = constraints.maxWidth < 768;
 
         return Container(
-          padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 16 : 50, vertical: isMobile ? 30 : 60),
-          color: const Color(0xFFFAFBFC),
-          child: Center(
-            child: Container(
-              constraints:
-                  BoxConstraints(maxWidth: isMobile ? double.infinity : 700),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 30,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: isMobile
-                      ? 'Search products...'
-                      : 'Search wellness products, supplements, and more...',
-                  hintStyle: TextStyle(color: Colors.grey[500]),
-                  prefixIcon: Container(
-                    margin: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00D4AA).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.search_rounded,
-                      color: Color(0xFF00D4AA),
-                      size: 24,
-                    ),
-                  ),
-                  suffixIcon: Container(
-                    margin: const EdgeInsets.all(8),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (_searchController.text.isNotEmpty) {
-                          context.go('/search?q=${_searchController.text}');
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00D4AA),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text('Search'),
-                    ),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.all(isMobile ? 16 : 20),
+          padding: EdgeInsets.all(isMobile ? 20 : 40),
+          color: Colors.white,
+          child: Column(
+            children: [
+              Text(
+                'Why Choose Us',
+                style: TextStyle(
+                  fontSize: isMobile ? 24 : 32,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF1A365D),
                 ),
-                onSubmitted: (value) {
-                  if (value.isNotEmpty) {
-                    context.go('/search?q=$value');
-                  }
-                },
               ),
-            ),
+              const SizedBox(height: 32),
+              isMobile
+                  ? Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                                child: _buildStatCard('50K+', 'Happy Customers',
+                                    Icons.people_outline)),
+                            const SizedBox(width: 16),
+                            Expanded(
+                                child: _buildStatCard('1000+', 'Products',
+                                    Icons.inventory_2_outlined)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                                child: _buildStatCard(
+                                    '99%', 'Satisfaction', Icons.star_outline)),
+                            const SizedBox(width: 16),
+                            Expanded(
+                                child: _buildStatCard('24/7', 'Support',
+                                    Icons.support_agent_outlined)),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildStatCard(
+                            '50K+', 'Happy Customers', Icons.people_outline),
+                        _buildStatCard(
+                            '1000+', 'Products', Icons.inventory_2_outlined),
+                        _buildStatCard(
+                            '99%', 'Satisfaction', Icons.star_outline),
+                        _buildStatCard(
+                            '24/7', 'Support', Icons.support_agent_outlined),
+                      ],
+                    ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildStatsSection() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isMobile = constraints.maxWidth < 768;
-
-        return Container(
-          padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 16 : 50, vertical: isMobile ? 30 : 40),
-          color: Colors.white,
-          child: isMobile
-              ? Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                            child: _buildStatItem('50K+', 'Happy Customers',
-                                Icons.people_outline)),
-                        const SizedBox(width: 16),
-                        Expanded(
-                            child: _buildStatItem('1000+', 'Premium Products',
-                                Icons.inventory_2_outlined)),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: _buildStatItem('99%', 'Satisfaction Rate',
-                                Icons.star_outline)),
-                        const SizedBox(width: 16),
-                        Expanded(
-                            child: _buildStatItem('24/7', 'Customer Support',
-                                Icons.support_agent_outlined)),
-                      ],
-                    ),
-                  ],
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildStatItem(
-                        '50K+', 'Happy Customers', Icons.people_outline),
-                    _buildStatItem('1000+', 'Premium Products',
-                        Icons.inventory_2_outlined),
-                    _buildStatItem(
-                        '99%', 'Satisfaction Rate', Icons.star_outline),
-                    _buildStatItem('24/7', 'Customer Support',
-                        Icons.support_agent_outlined),
-                  ],
-                ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatItem(String number, String label, IconData icon) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isMobile = constraints.maxWidth < 200;
-
-        return Column(
-          children: [
-            Container(
-              padding: EdgeInsets.all(isMobile ? 12 : 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF00D4AA).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+  Widget _buildStatCard(String number, String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFBFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
               ),
-              child: Icon(icon,
-                  color: const Color(0xFF00D4AA), size: isMobile ? 24 : 32),
+              borderRadius: BorderRadius.circular(12),
             ),
-            SizedBox(height: isMobile ? 8 : 12),
-            Text(
-              number,
-              style: TextStyle(
-                fontSize: isMobile ? 20 : 28,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF1A365D),
-              ),
+            child: Icon(icon, color: Colors.white, size: 32),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            number,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1A365D),
             ),
-            SizedBox(height: isMobile ? 2 : 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isMobile ? 12 : 14,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
             ),
-          ],
-        );
-      },
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
@@ -456,17 +431,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             constraints.maxWidth >= 768 && constraints.maxWidth < 1024;
 
         return Container(
-          padding: EdgeInsets.all(isMobile ? 16 : 50),
+          padding: EdgeInsets.all(isMobile ? 20 : 40),
           color: const Color(0xFFFAFBFC),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flex(
-                direction: isMobile ? Axis.vertical : Axis.horizontal,
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: isMobile
-                    ? CrossAxisAlignment.start
-                    : CrossAxisAlignment.center,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,61 +445,77 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Text(
                         'Shop by Category',
                         style: TextStyle(
-                          fontSize: isMobile ? 28 : 36,
-                          fontWeight: FontWeight.w800,
+                          fontSize: isMobile ? 24 : 32,
+                          fontWeight: FontWeight.w900,
                           color: const Color(0xFF1A365D),
-                          letterSpacing: -0.5,
                         ),
                       ),
-                      SizedBox(height: isMobile ? 4 : 8),
+                      const SizedBox(height: 8),
                       Text(
-                        'Explore our curated collection of wellness essentials',
+                        'Explore our wide range of categories',
                         style: TextStyle(
-                          fontSize: isMobile ? 14 : 16,
+                          fontSize: 16,
                           color: Colors.grey[600],
-                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: isMobile ? 16 : 0),
-                  TextButton.icon(
-                    onPressed: () {
-                      context.go('/categories');
-                    },
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 20),
-                    label: const Text('View All'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF00D4AA),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  if (!isMobile)
+                    TextButton.icon(
+                      onPressed: () => context.go('/categories'),
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: const Text('View All'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF667EEA),
+                      ),
                     ),
-                  ),
                 ],
               ),
-              SizedBox(height: isMobile ? 24 : 40),
+              const SizedBox(height: 32),
               Consumer<CategoryProvider>(
                 builder: (context, categoryProvider, child) {
                   if (categoryProvider.isLoading) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Color(0xFF667EEA)),
+                      ),
+                    );
                   }
+
+                  final categories =
+                      categoryProvider.categories.take(6).toList();
 
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: isMobile ? 2 : (isTablet ? 3 : 4),
-                      crossAxisSpacing: isMobile ? 12 : 24,
-                      mainAxisSpacing: isMobile ? 12 : 24,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
                       childAspectRatio: 1.1,
                     ),
-                    itemCount: categoryProvider.categories.length,
+                    itemCount: categories.length,
                     itemBuilder: (context, index) {
-                      final category = categoryProvider.categories[index];
+                      final category = categories[index];
                       return CategoryCard(category: category);
                     },
                   );
                 },
               ),
+              if (isMobile) ...[
+                const SizedBox(height: 24),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => context.go('/categories'),
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: const Text('View All Categories'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF667EEA),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -544,17 +531,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             constraints.maxWidth >= 768 && constraints.maxWidth < 1024;
 
         return Container(
-          padding: EdgeInsets.all(isMobile ? 16 : 50),
+          padding: EdgeInsets.all(isMobile ? 20 : 40),
           color: Colors.white,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flex(
-                direction: isMobile ? Axis.vertical : Axis.horizontal,
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: isMobile
-                    ? CrossAxisAlignment.start
-                    : CrossAxisAlignment.center,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,66 +545,190 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Text(
                         'Featured Products',
                         style: TextStyle(
-                          fontSize: isMobile ? 28 : 36,
-                          fontWeight: FontWeight.w800,
+                          fontSize: isMobile ? 24 : 32,
+                          fontWeight: FontWeight.w900,
                           color: const Color(0xFF1A365D),
-                          letterSpacing: -0.5,
                         ),
                       ),
-                      SizedBox(height: isMobile ? 4 : 8),
+                      const SizedBox(height: 8),
                       Text(
-                        'Hand-picked premium products for your wellness journey',
+                        'Hand-picked products for you',
                         style: TextStyle(
-                          fontSize: isMobile ? 14 : 16,
+                          fontSize: 16,
                           color: Colors.grey[600],
-                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: isMobile ? 16 : 0),
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00D4AA).withOpacity(0.1),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
-                      'New Arrivals',
+                      '🔥 HOT',
                       style: TextStyle(
-                        color: Color(0xFF00D4AA),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: isMobile ? 24 : 40),
+              const SizedBox(height: 32),
               Consumer<ProductProvider>(
                 builder: (context, productProvider, child) {
                   if (productProvider.isLoading) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Color(0xFF667EEA)),
+                      ),
+                    );
                   }
+
+                  final products =
+                      productProvider.featuredProducts.take(6).toList();
 
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
-                      crossAxisSpacing: isMobile ? 0 : 24,
-                      mainAxisSpacing: isMobile ? 16 : 24,
-                      childAspectRatio: isMobile ? 1.2 : 0.75,
+                      crossAxisSpacing: 20,
+                      mainAxisSpacing: 20,
+                      childAspectRatio: isMobile ? 1.2 : 0.8,
                     ),
-                    itemCount: productProvider.featuredProducts.length,
+                    itemCount: products.length,
                     itemBuilder: (context, index) {
-                      final product = productProvider.featuredProducts[index];
+                      final product = products[index];
                       return ProductCard(product: product);
                     },
                   );
                 },
               ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDealsSection() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 768;
+
+        return Container(
+          margin: EdgeInsets.all(isMobile ? 20 : 40),
+          padding: EdgeInsets.all(isMobile ? 24 : 40),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF667EEA).withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Text(
+                        '⚡ LIMITED TIME',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      isMobile ? 'Special Deals' : 'Special Deals & Offers',
+                      style: TextStyle(
+                        fontSize: isMobile ? 28 : 36,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Up to 70% off on selected items. Limited time only!',
+                      style: TextStyle(
+                        fontSize: isMobile ? 14 : 16,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => context.go('/products'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF667EEA),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 24 : 32,
+                          vertical: isMobile ? 12 : 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Shop Deals',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isMobile) ...[
+                const SizedBox(width: 40),
+                Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.local_offer_outlined,
+                    size: 60,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -635,104 +742,122 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final bool isMobile = constraints.maxWidth < 768;
 
         return Container(
-          margin: EdgeInsets.all(isMobile ? 16 : 50),
-          padding: EdgeInsets.all(isMobile ? 30 : 60),
+          margin: EdgeInsets.all(isMobile ? 20 : 40),
+          padding: EdgeInsets.all(isMobile ? 24 : 40),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF1A365D), Color(0xFF2B6CB0)],
+              colors: [Color(0xFF1A365D), Color(0xFF2D3748)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(24),
           ),
-          child: Flex(
-            direction: isMobile ? Axis.vertical : Axis.horizontal,
+          child: Column(
             children: [
-              Expanded(
-                flex: isMobile ? 0 : 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Stay Updated',
-                      style: TextStyle(
-                        fontSize: isMobile ? 24 : 32,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(height: isMobile ? 8 : 12),
-                    Text(
-                      'Get the latest wellness tips, product updates, and exclusive offers delivered to your inbox.',
-                      style: TextStyle(
-                        fontSize: isMobile ? 14 : 16,
-                        color: const Color(0xFFE2E8F0),
-                        height: 1.5,
-                      ),
-                    ),
-                    SizedBox(height: isMobile ? 20 : 32),
-                    Flex(
-                      direction: isMobile ? Axis.vertical : Axis.horizontal,
-                      children: [
-                        Expanded(
-                          child: TextField(
+              Text(
+                'Stay Updated',
+                style: TextStyle(
+                  fontSize: isMobile ? 28 : 36,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Get the latest updates on new products and exclusive offers',
+                style: TextStyle(
+                  fontSize: isMobile ? 14 : 16,
+                  color: Colors.white70,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              Container(
+                constraints:
+                    BoxConstraints(maxWidth: isMobile ? double.infinity : 400),
+                child: isMobile
+                    ? Column(
+                        children: [
+                          TextField(
                             decoration: InputDecoration(
-                              hintText: 'Enter your email address',
+                              hintText: 'Enter your email',
                               hintStyle: TextStyle(color: Colors.grey[400]),
                               filled: true,
                               fillColor: Colors.white,
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(25),
                                 borderSide: BorderSide.none,
                               ),
-                              contentPadding: const EdgeInsets.all(16),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
                             ),
                           ),
-                        ),
-                        SizedBox(
-                          width: isMobile ? 0 : 16,
-                          height: isMobile ? 12 : 0,
-                        ),
-                        SizedBox(
-                          width: isMobile ? double.infinity : null,
-                          child: ElevatedButton(
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {},
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF667EEA),
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                              ),
+                              child: const Text(
+                                'Subscribe',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              decoration: InputDecoration(
+                                hintText: 'Enter your email',
+                                hintStyle: TextStyle(color: Colors.grey[400]),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
                             onPressed: () {},
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00D4AA),
+                              backgroundColor: const Color(0xFF667EEA),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(25),
                               ),
                             ),
                             child: const Text(
                               'Subscribe',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                              style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                        ],
+                      ),
               ),
-              if (!isMobile) ...[
-                const SizedBox(width: 40),
-                Expanded(
-                  child: Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(
-                      Icons.mail_outline_rounded,
-                      size: 80,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         );
@@ -740,155 +865,164 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooterSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isMobile = constraints.maxWidth < 768;
 
         return Container(
-          padding: EdgeInsets.all(isMobile ? 20 : 50),
+          padding: EdgeInsets.all(isMobile ? 20 : 40),
           color: const Color(0xFF1A365D),
           child: Column(
             children: [
-              Flex(
-                direction: isMobile ? Axis.vertical : Axis.horizontal,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: isMobile ? 0 : 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Wellness Store',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Your trusted partner in the journey toward optimal wellness. We provide premium, scientifically-backed products that enhance your daily life.',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
-                            fontSize: 16,
-                            height: 1.6,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            _buildSocialButton(Icons.facebook, () {}),
-                            const SizedBox(width: 12),
-                            _buildSocialButton(Icons.abc_sharp, () {}),
-                            const SizedBox(width: 12),
-                            _buildSocialButton(Icons.abc, () {}),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isMobile) const SizedBox(width: 40),
-                  if (isMobile) const SizedBox(height: 32),
-                  if (isMobile)
-                    Column(
-                      children: [
-                        _buildFooterColumn('Quick Links', [
-                          'About Us',
-                          'Our Story',
-                          'Careers',
-                          'Press',
-                        ]),
-                        const SizedBox(height: 24),
-                        _buildFooterColumn('Customer Care', [
-                          'Help Center',
-                          'Shipping Info',
-                          'Returns & Exchanges',
-                          'Track Your Order',
-                        ]),
-                        const SizedBox(height: 24),
-                        _buildFooterColumn('Legal', [
-                          'Privacy Policy',
-                          'Terms of Service',
-                          'Cookie Policy',
-                          'Accessibility',
-                        ]),
-                      ],
-                    )
-                  else
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildFooterColumn('Quick Links', [
-                            'About Us',
-                            'Our Story',
-                            'Careers',
-                            'Press',
-                          ]),
-                          _buildFooterColumn('Customer Care', [
-                            'Help Center',
-                            'Shipping Info',
-                            'Returns & Exchanges',
-                            'Track Your Order',
-                          ]),
-                          _buildFooterColumn('Legal', [
-                            'Privacy Policy',
-                            'Terms of Service',
-                            'Cookie Policy',
-                            'Accessibility',
-                          ]),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-              SizedBox(height: isMobile ? 32 : 40),
+              if (isMobile)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildFooterBrand(),
+                    const SizedBox(height: 32),
+                    _buildFooterLinks(),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 2, child: _buildFooterBrand()),
+                    Expanded(flex: 3, child: _buildFooterLinks()),
+                  ],
+                ),
+              const SizedBox(height: 32),
               Divider(color: Colors.white.withOpacity(0.2)),
-              SizedBox(height: isMobile ? 16 : 24),
-              Flex(
-                direction: isMobile ? Axis.vertical : Axis.horizontal,
+              const SizedBox(height: 24),
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '© 2025 Wellness Store. All rights reserved.',
+                    '© 2024 WellnessHub. All rights reserved.',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.7),
                       fontSize: 14,
                     ),
                   ),
-                  if (isMobile) const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize:
-                        isMobile ? MainAxisSize.min : MainAxisSize.max,
-                    children: [
-                      Text(
-                        'Made with ',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 14,
-                        ),
-                      ),
-                      const Icon(
-                        Icons.favorite,
-                        color: Color(0xFF00D4AA),
-                        size: 16,
-                      ),
-                      Text(
-                        ' for your wellness',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
+                  if (!isMobile)
+                    Row(
+                      children: [
+                        _buildSocialButton(Icons.facebook),
+                        const SizedBox(width: 12),
+                        _buildSocialButton(Icons.alternate_email),
+                        const SizedBox(width: 12),
+                        _buildSocialButton(Icons.message),
+                      ],
+                    ),
                 ],
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFooterBrand() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.favorite_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'WellnessHub',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Your trusted partner for premium quality products. We deliver excellence with every purchase.',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 16,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterLinks() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 400;
+
+        if (isMobile) {
+          return Column(
+            children: [
+              _buildFooterColumn('Quick Links', [
+                'About Us',
+                'Our Story',
+                'Careers',
+                'Press',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Customer Care', [
+                'Help Center',
+                'Shipping Info',
+                'Returns',
+                'Track Order',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Legal', [
+                'Privacy Policy',
+                'Terms of Service',
+                'Cookie Policy',
+                'Accessibility',
+              ]),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFooterColumn('Quick Links', [
+              'About Us',
+              'Our Story',
+              'Careers',
+              'Press',
+            ]),
+            _buildFooterColumn('Customer Care', [
+              'Help Center',
+              'Shipping Info',
+              'Returns',
+              'Track Order',
+            ]),
+            _buildFooterColumn('Legal', [
+              'Privacy Policy',
+              'Terms of Service',
+              'Cookie Policy',
+              'Accessibility',
+            ]),
+          ],
         );
       },
     );
@@ -901,7 +1035,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Text(
           title,
           style: const TextStyle(
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.w700,
             color: Colors.white,
           ),
@@ -909,9 +1043,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         const SizedBox(height: 16),
         ...links.map((link) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: TextButton(
-                onPressed: () {
-                  // Navigate based on link
+              child: GestureDetector(
+                onTap: () {
+                  // Handle navigation based on link
                   switch (link.toLowerCase()) {
                     case 'about us':
                       context.go('/about');
@@ -926,18 +1060,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       context.go('/terms');
                       break;
                     default:
-                      // Handle other links
                       break;
                   }
                 },
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white.withOpacity(0.8),
-                  padding: EdgeInsets.zero,
-                  alignment: Alignment.centerLeft,
-                ),
                 child: Text(
                   link,
-                  style: const TextStyle(fontSize: 14),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
                 ),
               ),
             )),
@@ -945,21 +1076,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSocialButton(IconData icon, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 20),
-        onPressed: onPressed,
+  Widget _buildSocialButton(IconData icon) {
+    return GestureDetector(
+      onTap: () {
+        // Handle social media navigation
+      },
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 20,
+        ),
       ),
     );
   }
 }
 
-// Custom painter for geometric background pattern
+// Custom Painter for Background Pattern
 class GeometricPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -967,16 +1105,31 @@ class GeometricPatternPainter extends CustomPainter {
       ..color = Colors.white.withOpacity(0.05)
       ..style = PaintingStyle.fill;
 
-    // Draw geometric shapes
-    for (int i = 0; i < 20; i++) {
-      final x = (i * size.width / 10) % size.width;
-      final y = (i * size.height / 15) % size.height;
+    // Draw circles
+    for (int i = 0; i < 15; i++) {
+      final x = (i * size.width / 8) % size.width;
+      final y = (i * size.height / 10) % size.height;
 
       canvas.drawCircle(
         Offset(x, y),
-        20 + (i % 3) * 10,
+        15 + (i % 3) * 10,
         paint,
       );
+    }
+
+    // Draw triangles
+    final path = Path();
+    for (int i = 0; i < 8; i++) {
+      final x = (i * size.width / 5) % size.width;
+      final y = (i * size.height / 7) % size.height;
+
+      path.reset();
+      path.moveTo(x, y);
+      path.lineTo(x + 20, y + 30);
+      path.lineTo(x - 20, y + 30);
+      path.close();
+
+      canvas.drawPath(path, paint);
     }
   }
 

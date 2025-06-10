@@ -83,26 +83,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Column(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: product!.imageUrl,
-            width: double.infinity,
-            height: 400,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              width: double.infinity,
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              product!.imageUrl,
               height: 400,
-              color: Colors.grey[200],
-              child: const Icon(Icons.image, size: 50),
-            ),
-            errorWidget: (context, url, error) => Container(
               width: double.infinity,
-              height: 400,
-              color: Colors.grey[200],
-              child: const Icon(Icons.error, size: 50),
-            ),
-          ),
-        ),
+            )),
       ],
     );
   }

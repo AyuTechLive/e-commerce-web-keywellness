@@ -1,4 +1,4 @@
-// functions/index.js - Updated with proper PhonePe Order Status API verification
+// functions/index.js - Updated with discount support in order processing
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const axios = require("axios");
@@ -11,16 +11,16 @@ const PHONEPE_CONFIG = {
   merchantId: "PGTESTPAYUAT",
   saltKey: "099eb0cd-02cf-4e2a-8aca-3e6c6aff0399",
   saltIndex: "1",
-  baseUrl: "https://api-preprod.phonepe.com/apis/pg-sandbox", // UAT
+  baseUrl: "https://api-preprod.phonepe.com/apis/pg-sandbox",
   clientId: "TEST-M23675ZMAG3KW_25052",
   clientSecret: "MGJjNDJlYjMtODMzZS00OGJiLTkwY2QtNzY1YzFiZDNmNTli",
 };
 
-// Delhivery Configuration with Working Default Values
+// Delhivery Configuration
 const DELHIVERY_CONFIG = {
   token: '68743057c62717b9f0c08fa3f3d25f25cde9cb8a',
   clientName: 'keiway-wellness',
-  baseUrl: 'https://track.delhivery.com', // Staging
+  baseUrl: 'https://track.delhivery.com',
   defaults: {
     pickup_location: {
       name: "Ayush kumar",
@@ -33,7 +33,7 @@ const DELHIVERY_CONFIG = {
     customer: {
       name: "Anushka shahi",
       add: "New Abadi, Street No 18",
-      pin: "335513", // Working pincode as string
+      pin: "335513",
       city: "Hanumangarh Town",
       state: "Rajasthan",
       country: "India",
@@ -130,7 +130,7 @@ function generateTransactionId() {
   return `TXN${timestamp}${random}`.substring(0, 34);
 }
 
-// Initialize PhonePe Payment (unchanged)
+// Initialize PhonePe Payment
 exports.initiatePhonePePayment = functions.https.onCall(async (data, context) => {
   try {
     console.log("🚀 Initiating PhonePe Payment with V2 API (Payment-First Flow)...");
@@ -238,7 +238,7 @@ exports.initiatePhonePePayment = functions.https.onCall(async (data, context) =>
   }
 });
 
-// FIXED: Verify Payment using PhonePe Order Status API
+// Verify Payment using PhonePe Order Status API
 exports.verifyPayment = functions.https.onCall(async (data, context) => {
   try {
     console.log("🔍 Verifying payment with PhonePe Order Status API...");
@@ -255,10 +255,7 @@ exports.verifyPayment = functions.https.onCall(async (data, context) => {
 
     console.log(`🔍 Checking payment status for order: ${merchantOrderId}`);
 
-    // Get auth token for PhonePe API
     const accessToken = await getAuthToken();
-
-    // Call PhonePe Order Status API - this is the key fix
     const statusUrl = `${PHONEPE_CONFIG.baseUrl}/checkout/v2/order/${merchantOrderId}/status?details=true&errorContext=true`;
     
     console.log(`📡 Calling PhonePe Order Status API: ${statusUrl}`);
@@ -273,7 +270,6 @@ exports.verifyPayment = functions.https.onCall(async (data, context) => {
 
     console.log("✅ PhonePe Order Status Response:", JSON.stringify(response.data, null, 2));
 
-    // Update payment request with verification response
     const paymentRef = admin.firestore().collection("payment_requests").doc(merchantOrderId);
     await paymentRef.update({
       verificationResponse: response.data,
@@ -281,23 +277,19 @@ exports.verifyPayment = functions.https.onCall(async (data, context) => {
       lastVerificationAttempt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Process the response according to PhonePe documentation
     const orderData = response.data;
-    const orderState = orderData.state; // Root level state parameter as per documentation
+    const orderState = orderData.state;
     
     console.log(`📊 Order State: ${orderState}`);
 
-    // Handle different payment states
     if (orderState === "COMPLETED") {
       console.log("💰 Payment COMPLETED - Processing order...");
       
-      // Update payment status
       await paymentRef.update({
         status: "payment_completed",
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // Process the successful payment and create order
       try {
         await processSuccessfulPayment(merchantOrderId, orderData);
         
@@ -310,7 +302,6 @@ exports.verifyPayment = functions.https.onCall(async (data, context) => {
       } catch (orderProcessingError) {
         console.error("❌ Order processing error:", orderProcessingError);
         
-        // Even if order processing fails, payment was successful
         return {
           success: true,
           status: "completed",
@@ -344,7 +335,6 @@ exports.verifyPayment = functions.https.onCall(async (data, context) => {
         failureReason: orderData.errorCode || "Payment failed"
       });
 
-      // Get error details if available
       let errorMessage = "Payment failed";
       if (orderData.errorContext) {
         errorMessage = orderData.errorContext.description || errorMessage;
@@ -373,7 +363,6 @@ exports.verifyPayment = functions.https.onCall(async (data, context) => {
   } catch (error) {
     console.error("❌ Payment verification error:", error.response?.data || error.message);
 
-    // If it's a 404 error, the order might not exist yet
     if (error.response?.status === 404) {
       console.log("⚠️ Order not found in PhonePe - might be too early or invalid order ID");
       return {
@@ -385,12 +374,10 @@ exports.verifyPayment = functions.https.onCall(async (data, context) => {
       };
     }
 
-    // Handle authentication errors
     if (error.response?.status === 401) {
       throw new functions.https.HttpsError("unauthenticated", "PhonePe authentication failed");
     }
 
-    // Log the error for debugging
     await admin.firestore().collection("verification_errors").add({
       orderId: data.merchantOrderId,
       error: error.response?.data || error.message,
@@ -401,12 +388,11 @@ exports.verifyPayment = functions.https.onCall(async (data, context) => {
   }
 });
 
-// Process successful payment and create order
+// Process successful payment and create order with discount support
 async function processSuccessfulPayment(merchantOrderId, paymentData) {
   try {
     console.log(`✅ Processing successful payment for order: ${merchantOrderId}`);
 
-    // Get pending order data
     const pendingOrderDoc = await admin.firestore().collection("pending_orders").doc(merchantOrderId).get();
 
     if (!pendingOrderDoc.exists) {
@@ -416,12 +402,50 @@ async function processSuccessfulPayment(merchantOrderId, paymentData) {
     const pendingData = pendingOrderDoc.data();
     console.log("📋 Found pending order data");
 
-    // Create confirmed order
+    // Calculate discount summary from cart items
+    let originalTotal = 0;
+    let discountedTotal = 0;
+    let totalSavings = 0;
+    const discountDetails = [];
+
+    if (pendingData.items && Array.isArray(pendingData.items)) {
+      pendingData.items.forEach(item => {
+        const itemOriginalPrice = item.originalPrice || item.price;
+        const itemCurrentPrice = item.price;
+        const itemQuantity = item.quantity || 1;
+        
+        const itemOriginalTotal = itemOriginalPrice * itemQuantity;
+        const itemDiscountedTotal = itemCurrentPrice * itemQuantity;
+        const itemSavings = itemOriginalTotal - itemDiscountedTotal;
+        
+        originalTotal += itemOriginalTotal;
+        discountedTotal += itemDiscountedTotal;
+        totalSavings += itemSavings;
+
+        if (itemSavings > 0) {
+          const discountPercentage = ((itemSavings / itemOriginalTotal) * 100).toFixed(1);
+          discountDetails.push({
+            productName: item.name,
+            originalPrice: itemOriginalPrice,
+            discountedPrice: itemCurrentPrice,
+            quantity: itemQuantity,
+            savingsAmount: itemSavings,
+            discountPercentage: parseFloat(discountPercentage)
+          });
+        }
+      });
+    }
+
+    // Create confirmed order with discount information
     const confirmedOrder = {
       id: merchantOrderId,
       userId: pendingData.userId,
       items: pendingData.items,
       total: pendingData.total,
+      originalTotal: originalTotal,
+      totalSavings: totalSavings,
+      discountDetails: discountDetails,
+      hasDiscounts: totalSavings > 0,
       shippingAddress: pendingData.shippingAddress,
       customerDetails: pendingData.customerDetails,
       status: "confirmed",
@@ -435,7 +459,7 @@ async function processSuccessfulPayment(merchantOrderId, paymentData) {
 
     // Save confirmed order
     await admin.firestore().collection("orders").doc(merchantOrderId).set(confirmedOrder);
-    console.log("✅ Confirmed order created");
+    console.log("✅ Confirmed order created with discount tracking");
 
     // Create Delhivery shipping order
     try {
@@ -444,7 +468,6 @@ async function processSuccessfulPayment(merchantOrderId, paymentData) {
       const customerDetails = pendingData.customerDetails;
       const shippingAddress = pendingData.shippingAddress;
 
-      // Parse shipping address
       const addressParts = shippingAddress.split(',').map(part => part.trim());
       const pincodeMatch = shippingAddress.match(/\b(\d{6})\b/);
       const stateMatch = shippingAddress.match(/([A-Za-z\s]+)\s*-?\s*\d{6}/);
@@ -456,24 +479,28 @@ async function processSuccessfulPayment(merchantOrderId, paymentData) {
         pincode: pincodeMatch ? pincodeMatch[1] : '335513'
       };
 
-      // Get safe shipping data with defaults
       const safeData = getSafeShippingData(customerDetails, parsedAddress);
 
-      // Calculate package details
       const itemCount = pendingData.items ? pendingData.items.length : 1;
       const packageWeight = Math.max(0.5, itemCount * 0.3);
       const packageDimensions = { length: 15, breadth: 15, height: 10 };
 
-      // Prepare products description
+      // Prepare products description with discount info
       let productsDesc = "Wellness Products";
       let quantity = "1";
       
       if (pendingData.items && Array.isArray(pendingData.items) && pendingData.items.length > 0) {
-        productsDesc = pendingData.items.map(item => `${item.name || 'Product'} (Qty: ${item.quantity || 1})`).join(', ');
+        productsDesc = pendingData.items.map(item => {
+          let itemDesc = `${item.name || 'Product'} (Qty: ${item.quantity || 1})`;
+          if (item.originalPrice && item.price < item.originalPrice) {
+            const savings = ((item.originalPrice - item.price) / item.originalPrice * 100).toFixed(0);
+            itemDesc += ` [${savings}% OFF]`;
+          }
+          return itemDesc;
+        }).join(', ');
         quantity = pendingData.items.reduce((sum, item) => sum + (item.quantity || 1), 0).toString();
       }
 
-      // Prepare the shipment data
       const shipmentData = {
         name: safeData.name,
         add: safeData.address,
@@ -509,7 +536,6 @@ async function processSuccessfulPayment(merchantOrderId, paymentData) {
         email: safeData.email,
       };
 
-      // Create Delhivery order
       const delhiveryOrderData = {
         shipments: [shipmentData],
         pickup_location: DELHIVERY_CONFIG.defaults.pickup_location
@@ -545,7 +571,6 @@ async function processSuccessfulPayment(merchantOrderId, paymentData) {
             trackingUrl = `${DELHIVERY_CONFIG.baseUrl}/api/v1/packages/json/?waybill=${assignedWaybill}`;
           }
 
-          // Update order with Delhivery details
           await admin.firestore().collection('orders').doc(merchantOrderId).update({
             delhivery: {
               waybill: assignedWaybill,
@@ -573,7 +598,6 @@ async function processSuccessfulPayment(merchantOrderId, paymentData) {
     } catch (delhiveryError) {
       console.error("⚠️ Delhivery order creation failed:", delhiveryError.message);
       
-      // Update order with retry flag - don't fail the entire process
       await admin.firestore().collection('orders').doc(merchantOrderId).update({
         delhiveryError: delhiveryError.message,
         delhiveryRetryNeeded: true,
@@ -583,7 +607,6 @@ async function processSuccessfulPayment(merchantOrderId, paymentData) {
       });
     }
 
-    // Clean up pending order
     await admin.firestore().collection("pending_orders").doc(merchantOrderId).delete();
     console.log("🗑️ Pending order cleaned up");
 
@@ -641,7 +664,6 @@ exports.paymentWebhook = functions.https.onRequest(async (req, res) => {
       if (event === "checkout.order.completed" && payload.state === "COMPLETED") {
         status = "payment_completed";
         
-        // Process order for completed payments
         try {
           await processSuccessfulPayment(merchantOrderId, payload);
           console.log(`✅ Webhook processed successful payment: ${merchantOrderId}`);
@@ -653,7 +675,6 @@ exports.paymentWebhook = functions.https.onRequest(async (req, res) => {
         status = "payment_failed";
       }
 
-      // Update payment request
       await admin.firestore().collection("payment_requests").doc(merchantOrderId).update({
         webhookResponse: req.body,
         status: status,
@@ -689,10 +710,11 @@ exports.healthCheck = functions.https.onRequest(async (req, res) => {
       },
       flow: "payment_first",
       timestamp: new Date().toISOString(),
-      version: "2.4.0",
+      version: "2.5.0",
       verification_method: "PhonePe Order Status API",
       working_pincode: DELHIVERY_CONFIG.defaults.customer.pin,
-      message: "Payment verification using PhonePe Order Status API with proper state handling"
+      features: ["discount_tracking", "order_discount_summary"],
+      message: "Payment verification with discount support and order tracking"
     });
   } catch (error) {
     res.status(500).json({
@@ -704,7 +726,7 @@ exports.healthCheck = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// Keep existing Delhivery serviceability check
+// Keep existing functions...
 exports.checkDelhiveryServiceability = functions.https.onCall(async (data, context) => {
   try {
     console.log('🔍 Checking Delhivery serviceability...');
@@ -771,7 +793,6 @@ exports.cleanupTransactionLogs = functions.pubsub.schedule('every 24 hours').onR
   cutoffDate.setDate(cutoffDate.getDate() - 30);
 
   try {
-    // Clean up old transaction logs
     const transactionQuery = admin.firestore()
       .collection('transaction_logs')
       .where('generatedAt', '<', cutoffDate)
@@ -788,7 +809,6 @@ exports.cleanupTransactionLogs = functions.pubsub.schedule('every 24 hours').onR
       console.log(`Cleaned up ${transactionSnapshot.size} old transaction logs`);
     }
 
-    // Clean up old pending orders (older than 24 hours)
     const pendingQuery = admin.firestore()
       .collection('pending_orders')
       .where('createdAt', '<', cutoffDate)
@@ -805,7 +825,6 @@ exports.cleanupTransactionLogs = functions.pubsub.schedule('every 24 hours').onR
       console.log(`Cleaned up ${pendingSnapshot.size} old pending orders`);
     }
 
-    // Clean up old verification errors
     const errorQuery = admin.firestore()
       .collection('verification_errors')
       .where('timestamp', '<', cutoffDate)
@@ -825,110 +844,5 @@ exports.cleanupTransactionLogs = functions.pubsub.schedule('every 24 hours').onR
     console.log('✅ PhonePe payment verification cleanup completed');
   } catch (error) {
     console.error('❌ Error during cleanup:', error);
-  }
-});
-
-// Manual retry function for failed Delhivery orders
-exports.retryDelhiveryOrder = functions.https.onCall(async (data, context) => {
-  try {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
-    }
-
-    const { orderId } = data;
-    if (!orderId) {
-      throw new functions.https.HttpsError("invalid-argument", "Order ID is required");
-    }
-
-    console.log(`🔄 Retrying Delhivery order creation for: ${orderId}`);
-
-    // Get order details
-    const orderDoc = await admin.firestore().collection('orders').doc(orderId).get();
-    if (!orderDoc.exists) {
-      throw new functions.https.HttpsError("not-found", "Order not found");
-    }
-
-    const orderData = orderDoc.data();
-
-    // Check if retry is needed
-    if (!orderData.delhiveryRetryNeeded) {
-      return {
-        success: true,
-        message: "Order does not need Delhivery retry"
-      };
-    }
-
-    // Retry Delhivery order creation using the same logic
-    // You would implement the retry logic here similar to processSuccessfulPayment
-    
-    return {
-      success: true,
-      message: "Delhivery order retry initiated"
-    };
-
-  } catch (error) {
-    console.error("❌ Error retrying Delhivery order:", error);
-    throw new functions.https.HttpsError("internal", "Retry failed");
-  }
-});
-
-// Test function to verify PhonePe Order Status API connectivity
-exports.testPhonePeOrderStatus = functions.https.onCall(async (data, context) => {
-  try {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
-    }
-
-    console.log("🧪 Testing PhonePe Order Status API connectivity...");
-
-    // Get auth token
-    const accessToken = await getAuthToken();
-    console.log("✅ Auth token obtained successfully");
-
-    // Test with a dummy order ID (this will return 404 but confirms API connectivity)
-    const testOrderId = "TEST123456789";
-    const statusUrl = `${PHONEPE_CONFIG.baseUrl}/checkout/v2/order/${testOrderId}/status`;
-    
-    try {
-      const response = await axios.get(statusUrl, {
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `O-Bearer ${accessToken}`,
-        },
-        timeout: 10000,
-      });
-      
-      // This shouldn't happen with a test order ID
-      console.log("Unexpected success with test order ID");
-      
-    } catch (apiError) {
-      if (apiError.response?.status === 404) {
-        console.log("✅ PhonePe Order Status API is accessible (404 expected for test order)");
-        return {
-          success: true,
-          message: "PhonePe Order Status API is working correctly",
-          api_endpoint: statusUrl,
-          test_status: "API accessible",
-          expected_404: true
-        };
-      } else {
-        throw apiError;
-      }
-    }
-
-    return {
-      success: true,
-      message: "PhonePe Order Status API test completed",
-      api_endpoint: statusUrl
-    };
-
-  } catch (error) {
-    console.error("❌ PhonePe Order Status API test failed:", error.response?.data || error.message);
-    
-    return {
-      success: false,
-      error: error.response?.data || error.message,
-      message: "PhonePe Order Status API test failed"
-    };
   }
 });
