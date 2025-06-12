@@ -29,10 +29,11 @@ class _AllProductsScreenState extends State<AllProductsScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
-  String _sortBy = 'name'; // name, price_low, price_high, rating
+  String _sortBy = 'name'; // name, price_low, price_high, rating, discount
   String? _selectedCategoryId;
   List<Product> _filteredProducts = [];
   bool _showFilters = false;
+  bool _showDiscountedOnly = false; // Add discount filter
   final List<String> _priceRanges = [
     'All Prices',
     'Under ₹500',
@@ -88,6 +89,11 @@ class _AllProductsScreenState extends State<AllProductsScreen>
           .toList();
     }
 
+    // Apply discount filter
+    if (_showDiscountedOnly) {
+      products = products.where((product) => product.isOnSale).toList();
+    }
+
     // Apply price range filter
     if (_selectedPriceRange != 'All Prices') {
       products = products.where((product) {
@@ -116,6 +122,14 @@ class _AllProductsScreenState extends State<AllProductsScreen>
         break;
       case 'rating':
         products.sort((a, b) => b.rating.compareTo(a.rating));
+        break;
+      case 'discount':
+        // Sort by discount percentage (highest first)
+        products.sort((a, b) {
+          final aDiscount = a.calculatedDiscountPercentage;
+          final bDiscount = b.calculatedDiscountPercentage;
+          return bDiscount.compareTo(aDiscount);
+        });
         break;
       case 'name':
       default:
@@ -235,6 +249,8 @@ class _AllProductsScreenState extends State<AllProductsScreen>
   }
 
   Widget _buildResultsHeader(bool isMobile) {
+    final discountedCount = _filteredProducts.where((p) => p.isOnSale).length;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -250,26 +266,53 @@ class _AllProductsScreenState extends State<AllProductsScreen>
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              'Discover amazing products just for you',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+            Row(
+              children: [
+                Text(
+                  'Discover amazing products just for you',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                if (discountedCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$discountedCount on sale',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
-            ),
+            gradient: _showDiscountedOnly
+                ? const LinearGradient(
+                    colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
+                  )
+                : const LinearGradient(
+                    colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
+                  ),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Text(
-            '🔥 TRENDING',
-            style: TextStyle(
+          child: Text(
+            _showDiscountedOnly ? '🔥 SALE ITEMS' : '🔥 TRENDING',
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,
               fontSize: 11,
@@ -312,7 +355,9 @@ class _AllProductsScreenState extends State<AllProductsScreen>
             ),
             const SizedBox(height: 12),
             Text(
-              'Try adjusting your search or filters',
+              _showDiscountedOnly
+                  ? 'No discounted products match your criteria'
+                  : 'Try adjusting your search or filters',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey.shade600,
@@ -331,6 +376,7 @@ class _AllProductsScreenState extends State<AllProductsScreen>
                   setState(() {
                     _selectedCategoryId = null;
                     _selectedPriceRange = 'All Prices';
+                    _showDiscountedOnly = false;
                     _searchController.clear();
                     _sortBy = 'name';
                   });
@@ -543,6 +589,10 @@ class _AllProductsScreenState extends State<AllProductsScreen>
                             value: 'rating',
                             child: Text('Rating (High to Low)'),
                           ),
+                          const PopupMenuItem(
+                            value: 'discount',
+                            child: Text('Discount (High to Low)'),
+                          ),
                         ],
                       ),
                     ),
@@ -564,6 +614,8 @@ class _AllProductsScreenState extends State<AllProductsScreen>
         return 'Price ↓';
       case 'rating':
         return 'Rating ↓';
+      case 'discount':
+        return 'Discount ↓';
       case 'name':
       default:
         return 'Name A-Z';
@@ -623,6 +675,50 @@ class _AllProductsScreenState extends State<AllProductsScreen>
                 ],
               ),
               const SizedBox(height: 24),
+
+              // Special Offers Filter
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Special Offers',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF4A5568),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildFilterChip(
+                        'All Products',
+                        !_showDiscountedOnly,
+                        () {
+                          setState(() {
+                            _showDiscountedOnly = false;
+                          });
+                          _filterProducts();
+                        },
+                      ),
+                      _buildFilterChip(
+                        'On Sale Only 🔥',
+                        _showDiscountedOnly,
+                        () {
+                          setState(() {
+                            _showDiscountedOnly = true;
+                          });
+                          _filterProducts();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
               // Category Filter
               Consumer<CategoryProvider>(
                 builder: (context, categoryProvider, child) {
@@ -674,6 +770,7 @@ class _AllProductsScreenState extends State<AllProductsScreen>
                 },
               ),
               const SizedBox(height: 24),
+
               // Price Range Filter
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,6 +803,7 @@ class _AllProductsScreenState extends State<AllProductsScreen>
                 ],
               ),
               const SizedBox(height: 24),
+
               // Clear Filters Button
               SizedBox(
                 width: double.infinity,
@@ -721,6 +819,7 @@ class _AllProductsScreenState extends State<AllProductsScreen>
                       setState(() {
                         _selectedCategoryId = null;
                         _selectedPriceRange = 'All Prices';
+                        _showDiscountedOnly = false;
                         _searchController.clear();
                         _sortBy = 'name';
                       });

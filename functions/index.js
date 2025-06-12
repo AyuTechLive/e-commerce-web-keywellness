@@ -8,9 +8,9 @@ admin.initializeApp();
 
 // PhonePe V2 Configuration
 const PHONEPE_CONFIG = {
-  merchantId: "PGTESTPAYUAT",
-  saltKey: "099eb0cd-02cf-4e2a-8aca-3e6c6aff0399",
-  saltIndex: "1",
+  // merchantId: "PGTESTPAYUAT",
+  // saltKey: "099eb0cd-02cf-4e2a-8aca-3e6c6aff0399",
+  // saltIndex: "1",
   baseUrl: "https://api-preprod.phonepe.com/apis/pg-sandbox",
   clientId: "TEST-M23675ZMAG3KW_25052",
   clientSecret: "MGJjNDJlYjMtODMzZS00OGJiLTkwY2QtNzY1YzFiZDNmNTli",

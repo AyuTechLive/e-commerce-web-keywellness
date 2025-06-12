@@ -1,15 +1,22 @@
+// widgets/app_bar_widget.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/website_content_provider.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String currentRoute;
+  final String? siteName;
+  final String? logoUrl;
 
   const CustomAppBar({
     Key? key,
     this.currentRoute = '/',
+    this.siteName,
+    this.logoUrl,
   }) : super(key: key);
 
   @override
@@ -53,39 +60,94 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Mobile Logo
-          GestureDetector(
-            onTap: () => context.go('/'),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+          Consumer<WebsiteContentProvider>(
+            builder: (context, websiteProvider, child) {
+              final config = websiteProvider.websiteConfig;
+              final displayName = siteName ?? config?.siteName ?? 'WellnessHub';
+              final displayLogoUrl = logoUrl ?? config?.logoUrl;
+
+              return GestureDetector(
+                onTap: () => context.go('/'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (displayLogoUrl?.isNotEmpty == true)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          displayLogoUrl!,
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.favorite_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.favorite_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    const SizedBox(width: 8),
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        color: Color(0xFF1A365D),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.favorite_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'WellnessHub',
-                  style: TextStyle(
-                    color: Color(0xFF1A365D),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
 
           // Mobile Action Buttons
@@ -288,38 +350,94 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Desktop Logo
-          GestureDetector(
-            onTap: () => context.go('/'),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+          Consumer<WebsiteContentProvider>(
+            builder: (context, websiteProvider, child) {
+              final config = websiteProvider.websiteConfig;
+              final displayName = siteName ?? config?.siteName ?? 'WellnessHub';
+              final displayLogoUrl = logoUrl ?? config?.logoUrl;
+
+              return GestureDetector(
+                onTap: () => context.go('/'),
+                child: Row(
+                  children: [
+                    if (displayLogoUrl?.isNotEmpty == true)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          displayLogoUrl!,
+                          // width: 60,
+                          // height: 40,
+                          scale: 2.5,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.favorite_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.favorite_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    const SizedBox(width: 12),
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        color: Color(0xFF1A365D),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 24,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.favorite_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                const Text(
-                  'WellnessHub',
-                  style: TextStyle(
-                    color: Color(0xFF1A365D),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 24,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
 
           // Desktop Navigation Links

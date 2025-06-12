@@ -17,6 +17,9 @@ class PaymentService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Save pending order data (for payment verification)
+// Update for PaymentService - only the savePendingOrderData method needs changes
+
+  /// Save pending order data (for payment verification) with discount support
   Future<void> savePendingOrderData({
     required String orderId,
     required String userId,
@@ -24,15 +27,22 @@ class PaymentService {
     required double total,
     required String shippingAddress,
     required Map<String, dynamic> customerDetails,
+    double? originalTotal, // Add original total parameter
+    double? totalSavings, // Add total savings parameter
+    Map<String, dynamic>? discountSummary, // Add discount summary parameter
   }) async {
     try {
-      print('💾 Saving pending order data for payment verification...');
+      print('💾 Saving pending order data with discount information...');
       print('🆔 Order ID: $orderId');
       print('👤 User ID: $userId');
       print('💰 Total: ₹$total');
+      if (originalTotal != null && totalSavings != null) {
+        print('💸 Original Total: ₹$originalTotal');
+        print('💵 Total Savings: ₹$totalSavings');
+      }
 
-      // Save to pending_orders collection (temporary storage)
-      await _firestore.collection('pending_orders').doc(orderId).set({
+      // Prepare order data with discount information
+      final orderData = {
         'orderId': orderId,
         'userId': userId,
         'items': items.map((item) => item.toMap()).toList(),
@@ -42,9 +52,25 @@ class PaymentService {
         'status': 'pending_payment',
         'createdAt': FieldValue.serverTimestamp(),
         'expiresAt': FieldValue.serverTimestamp(),
-      });
+      };
 
-      print('✅ Pending order data saved successfully');
+      // Add discount information if available
+      if (originalTotal != null) {
+        orderData['originalTotal'] = originalTotal;
+      }
+      if (totalSavings != null) {
+        orderData['totalSavings'] = totalSavings;
+      }
+      if (discountSummary != null) {
+        orderData['discountSummary'] = discountSummary;
+        orderData['hasDiscounts'] = discountSummary['hasDiscounts'] ?? false;
+      }
+
+      // Save to pending_orders collection (temporary storage)
+      await _firestore.collection('pending_orders').doc(orderId).set(orderData);
+
+      print(
+          '✅ Pending order data with discount information saved successfully');
     } catch (e) {
       print('❌ Error saving pending order data: $e');
       rethrow;

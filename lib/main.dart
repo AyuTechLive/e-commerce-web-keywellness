@@ -10,12 +10,15 @@ import 'package:keiwaywellness/providers/auth_provider.dart';
 import 'package:keiwaywellness/providers/cart_provider.dart';
 import 'package:keiwaywellness/providers/category_provider.dart';
 import 'package:keiwaywellness/providers/product_provider.dart';
+import 'package:keiwaywellness/providers/website_content_provider.dart';
+import 'package:keiwaywellness/screens/allcategories.dart';
 import 'package:keiwaywellness/screens/cart_screen.dart';
 import 'package:keiwaywellness/screens/category_product_screen.dart';
 import 'package:keiwaywellness/screens/checkout_screen.dart';
 import 'package:keiwaywellness/screens/home_screen.dart';
 import 'package:keiwaywellness/screens/login_screen.dart';
 import 'package:keiwaywellness/screens/order_success_screen.dart';
+import 'package:keiwaywellness/screens/page_screen.dart';
 import 'package:keiwaywellness/screens/product_detail_screen.dart';
 import 'package:keiwaywellness/screens/product_screen.dart';
 import 'package:keiwaywellness/screens/profile_screen.dart';
@@ -39,11 +42,12 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
+        ChangeNotifierProvider(create: (_) => WebsiteContentProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           return MaterialApp.router(
-            title: 'Wellness E-commerce',
+            title: 'Keiway Wellness',
             theme: ThemeData(
               primarySwatch: Colors.green,
               primaryColor: const Color(0xFF2E7D32),
@@ -79,6 +83,22 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const RegisterScreen(),
     ),
     GoRoute(
+      path: '/about',
+      builder: (context, state) => const AboutUsScreen(),
+    ),
+    GoRoute(
+      path: '/privacy',
+      builder: (context, state) => const PrivacyPolicyScreen(),
+    ),
+    GoRoute(
+      path: '/terms',
+      builder: (context, state) => const TermsConditionsScreen(),
+    ),
+    GoRoute(
+      path: '/refund',
+      builder: (context, state) => const RefundPolicyScreen(),
+    ),
+    GoRoute(
       path: '/product/:id',
       builder: (context, state) {
         final productId = state.pathParameters['id']!;
@@ -92,6 +112,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/checkout',
       builder: (context, state) => const CheckoutScreen(),
+    ),
+    GoRoute(
+      path: '/categories',
+      builder: (context, state) => const CategoriesScreen(),
     ),
     // ADD THIS ROUTE - Payment Verification Screen
     GoRoute(

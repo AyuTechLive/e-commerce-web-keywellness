@@ -9,8 +9,37 @@ class CartProvider extends ChangeNotifier {
   List<CartItemModel> get items => _items;
   int get itemCount => _items.length;
 
+  // Calculate total amount (discounted prices)
   double get totalAmount {
     return _items.fold(0.0, (sum, item) => sum + item.total);
+  }
+
+  // Calculate original total (before discounts)
+  double get originalTotalAmount {
+    return _items.fold(0.0, (sum, item) => sum + item.originalTotal);
+  }
+
+  // Calculate total savings
+  double get totalSavings {
+    return _items.fold(0.0, (sum, item) => sum + item.savings);
+  }
+
+  // Check if cart has any discounts
+  bool get hasDiscounts {
+    return _items.any((item) => item.hasDiscount);
+  }
+
+  // Get discount percentage for the entire cart
+  double get cartDiscountPercentage {
+    if (originalTotalAmount > 0) {
+      return (totalSavings / originalTotalAmount) * 100;
+    }
+    return 0.0;
+  }
+
+  // Get items with discounts
+  List<CartItemModel> get discountedItems {
+    return _items.where((item) => item.hasDiscount).toList();
   }
 
   CartProvider() {
@@ -33,7 +62,8 @@ class CartProvider extends ChangeNotifier {
     await prefs.setString('cart', cartData);
   }
 
-  void addItem(String productId, String name, double price, String imageUrl) {
+  void addItem(String productId, String name, double price, String imageUrl,
+      {double? originalPrice}) {
     final existingIndex =
         _items.indexWhere((item) => item.productId == productId);
 
@@ -44,6 +74,7 @@ class CartProvider extends ChangeNotifier {
         productId: productId,
         name: name,
         price: price,
+        originalPrice: originalPrice,
         imageUrl: imageUrl,
       ));
     }
@@ -88,5 +119,33 @@ class CartProvider extends ChangeNotifier {
           productId: '', name: '', price: 0, imageUrl: '', quantity: 0),
     );
     return item.quantity;
+  }
+
+  // Get discount summary for checkout
+  Map<String, dynamic> getDiscountSummary() {
+    final discountDetails = <DiscountDetail>[];
+
+    for (final item in _items) {
+      if (item.hasDiscount) {
+        discountDetails.add(DiscountDetail(
+          productName: item.name,
+          originalPrice: item.originalPrice!,
+          discountedPrice: item.price,
+          quantity: item.quantity,
+          savingsAmount: item.savings,
+          discountPercentage: item.discountPercentage,
+        ));
+      }
+    }
+
+    return {
+      'originalTotal': originalTotalAmount,
+      'discountedTotal': totalAmount,
+      'totalSavings': totalSavings,
+      'discountPercentage': cartDiscountPercentage,
+      'hasDiscounts': hasDiscounts,
+      'discountDetails': discountDetails,
+      'discountedItemsCount': discountedItems.length,
+    };
   }
 }

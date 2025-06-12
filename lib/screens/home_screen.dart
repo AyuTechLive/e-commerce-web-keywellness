@@ -1,12 +1,16 @@
+// screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/product_provider.dart';
 import '../providers/category_provider.dart';
+import '../providers/website_content_provider.dart';
 import '../widgets/app_bar_widget.dart';
 import '../widgets/product_card.dart';
 import '../widgets/category_product_card.dart';
+import '../models/website_content.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -32,29 +36,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
     _fadeController.forward();
+
+    // Load website content
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<WebsiteContentProvider>(context, listen: false)
+          .loadWebsiteConfig();
+    });
+
     _startBannerAutoSlide();
   }
 
   void _startBannerAutoSlide() {
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
-        _nextBanner();
-        _startBannerAutoSlide();
+        final provider =
+            Provider.of<WebsiteContentProvider>(context, listen: false);
+        final bannerCount = provider.activeBanners.length;
+        if (bannerCount > 0) {
+          _nextBanner(bannerCount);
+          _startBannerAutoSlide();
+        }
       }
     });
   }
 
-  void _nextBanner() {
-    if (_currentBannerIndex < 2) {
+  void _nextBanner(int bannerCount) {
+    if (_currentBannerIndex < bannerCount - 1) {
       _currentBannerIndex++;
     } else {
       _currentBannerIndex = 0;
     }
-    _bannerController.animateToPage(
-      _currentBannerIndex,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    if (_bannerController.hasClients) {
+      _bannerController.animateToPage(
+        _currentBannerIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   @override
@@ -66,29 +84,51 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFBFC),
-      appBar: const CustomAppBar(currentRoute: '/'),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHeroBannerSection(),
-              _buildQuickStatsSection(),
-              _buildCategoriesSection(),
-              _buildFeaturedProductsSection(),
-              _buildDealsSection(),
-              _buildNewsletterSection(),
-              _buildFooterSection(),
-            ],
+    return Consumer<WebsiteContentProvider>(
+      builder: (context, websiteProvider, child) {
+        final websiteConfig = websiteProvider.websiteConfig;
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFFAFBFC),
+          appBar: CustomAppBar(
+            currentRoute: '/',
+            siteName: websiteConfig?.siteName,
+            logoUrl: websiteConfig?.logoUrl,
           ),
-        ),
-      ),
+          body: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildHeroBannerSection(websiteProvider),
+                  _buildQuickStatsSection(websiteProvider),
+                  _buildCategoriesSection(),
+                  _buildFeaturedProductsSection(),
+                  _buildDealsSection(),
+                  _buildSaleProductsSection(),
+                  _buildNewsletterSection(websiteConfig),
+                  _buildFooterSection(websiteConfig),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeroBannerSection() {
+  Widget _buildHeroBannerSection(WebsiteContentProvider websiteProvider) {
+    final banners = websiteProvider.activeBanners;
+
+    if (banners.isEmpty) {
+      return Container(
+        height: 400,
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isMobile = constraints.maxWidth < 768;
@@ -96,48 +136,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
         return Container(
           height: height,
-          child: PageView(
+          child: PageView.builder(
             controller: _bannerController,
+            itemCount: banners.length,
             onPageChanged: (index) {
               setState(() {
                 _currentBannerIndex = index;
               });
             },
-            children: [
-              _buildBannerSlide(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                title: 'Premium Quality Products',
-                subtitle: 'Discover our curated collection',
-                buttonText: 'Shop Now',
+            itemBuilder: (context, index) {
+              final banner = banners[index];
+              return _buildBannerSlide(
+                banner: banner,
                 isMobile: isMobile,
-              ),
-              _buildBannerSlide(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                title: 'Exclusive Deals',
-                subtitle: 'Up to 70% off on selected items',
-                buttonText: 'View Deals',
-                isMobile: isMobile,
-              ),
-              _buildBannerSlide(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                title: 'Fast Delivery',
-                subtitle: 'Free shipping on orders above ₹999',
-                buttonText: 'Learn More',
-                isMobile: isMobile,
-              ),
-            ],
+              );
+            },
           ),
         );
       },
@@ -145,14 +158,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBannerSlide({
-    required Gradient gradient,
-    required String title,
-    required String subtitle,
-    required String buttonText,
+    required BannerItem banner,
     required bool isMobile,
   }) {
+    // Convert hex colors to Color objects
+    final colors = banner.gradientColors.map((hex) {
+      final hexCode = hex.replaceAll('#', '');
+      return Color(int.parse('FF$hexCode', radix: 16));
+    }).toList();
+
+    final gradient = LinearGradient(
+      colors: colors,
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
     return Container(
-      decoration: BoxDecoration(gradient: gradient),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        image: banner.backgroundImageUrl?.isNotEmpty == true
+            ? DecorationImage(
+                image: NetworkImage(banner.backgroundImageUrl!),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  Colors.black.withOpacity(0.3),
+                  BlendMode.darken,
+                ),
+              )
+            : null,
+      ),
       child: Stack(
         children: [
           // Background Pattern
@@ -172,25 +206,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   : CrossAxisAlignment.start,
               children: [
                 if (!isMobile) const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    '✨ Premium Collection',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                if (banner.badgeText.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${banner.badgeIcon} ${banner.badgeText}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
+                if (banner.badgeText.isNotEmpty) const SizedBox(height: 24),
                 Text(
-                  title,
+                  banner.title,
                   style: TextStyle(
                     fontSize: isMobile ? 32 : 48,
                     fontWeight: FontWeight.w900,
@@ -201,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  subtitle,
+                  banner.subtitle,
                   style: TextStyle(
                     fontSize: isMobile ? 16 : 18,
                     color: Colors.white70,
@@ -216,7 +251,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       : MainAxisAlignment.start,
                   children: [
                     ElevatedButton(
-                      onPressed: () => context.go('/products'),
+                      onPressed: () {
+                        if (banner.buttonAction?.isNotEmpty == true) {
+                          if (banner.buttonAction!.startsWith('http')) {
+                            _launchUrl(banner.buttonAction!);
+                          } else {
+                            context.go(banner.buttonAction!);
+                          }
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black87,
@@ -233,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            buttonText,
+                            banner.buttonText,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -278,17 +321,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             bottom: 20,
             left: 0,
             right: 0,
-            child: _buildPageIndicators(),
+            child: _buildPageIndicators(
+                Provider.of<WebsiteContentProvider>(context)
+                    .activeBanners
+                    .length),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPageIndicators() {
+  Widget _buildPageIndicators(int count) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(3, (index) {
+      children: List.generate(count, (index) {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -305,10 +351,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildQuickStatsSection() {
+  Widget _buildQuickStatsSection(WebsiteContentProvider websiteProvider) {
+    final stats = websiteProvider.activeStats;
+
+    if (stats.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isMobile = constraints.maxWidth < 768;
+        final websiteConfig = websiteProvider.websiteConfig;
 
         return Container(
           padding: EdgeInsets.all(isMobile ? 20 : 40),
@@ -316,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             children: [
               Text(
-                'Why Choose Us',
+                'Why Choose ${websiteConfig?.siteName ?? 'Us'}',
                 style: TextStyle(
                   fontSize: isMobile ? 24 : 32,
                   fontWeight: FontWeight.w900,
@@ -325,46 +378,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 32),
               isMobile
-                  ? Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                                child: _buildStatCard('50K+', 'Happy Customers',
-                                    Icons.people_outline)),
-                            const SizedBox(width: 16),
-                            Expanded(
-                                child: _buildStatCard('1000+', 'Products',
-                                    Icons.inventory_2_outlined)),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                                child: _buildStatCard(
-                                    '99%', 'Satisfaction', Icons.star_outline)),
-                            const SizedBox(width: 16),
-                            Expanded(
-                                child: _buildStatCard('24/7', 'Support',
-                                    Icons.support_agent_outlined)),
-                          ],
-                        ),
-                      ],
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildStatCard(
-                            '50K+', 'Happy Customers', Icons.people_outline),
-                        _buildStatCard(
-                            '1000+', 'Products', Icons.inventory_2_outlined),
-                        _buildStatCard(
-                            '99%', 'Satisfaction', Icons.star_outline),
-                        _buildStatCard(
-                            '24/7', 'Support', Icons.support_agent_outlined),
-                      ],
-                    ),
+                  ? _buildMobileStatsLayout(stats)
+                  : _buildDesktopStatsLayout(stats),
             ],
           ),
         );
@@ -372,7 +387,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStatCard(String number, String label, IconData icon) {
+  Widget _buildMobileStatsLayout(List<StatItem> stats) {
+    return Column(
+      children: [
+        for (int i = 0; i < stats.length; i += 2)
+          Padding(
+            padding: EdgeInsets.only(bottom: i + 2 < stats.length ? 16 : 0),
+            child: Row(
+              children: [
+                Expanded(child: _buildStatCard(stats[i])),
+                if (i + 1 < stats.length) ...[
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildStatCard(stats[i + 1])),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopStatsLayout(List<StatItem> stats) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: stats.map((stat) => _buildStatCard(stat)).toList(),
+    );
+  }
+
+  Widget _buildStatCard(StatItem stat) {
+    // Convert hex colors to Color objects
+    final colors = stat.gradientColors.map((hex) {
+      final hexCode = hex.replaceAll('#', '');
+      return Color(int.parse('FF$hexCode', radix: 16));
+    }).toList();
+
+    // Get icon data from icon name
+    IconData iconData = _getIconFromName(stat.iconName);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -392,16 +443,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-              ),
+              gradient: LinearGradient(colors: colors),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: Colors.white, size: 32),
+            child: Icon(iconData, color: Colors.white, size: 32),
           ),
           const SizedBox(height: 16),
           Text(
-            number,
+            stat.number,
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w900,
@@ -410,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 4),
           Text(
-            label,
+            stat.label,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -421,6 +470,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
     );
+  }
+
+  // Helper method to convert icon name to IconData
+  IconData _getIconFromName(String iconName) {
+    switch (iconName) {
+      case 'people_outline':
+        return Icons.people_outline;
+      case 'inventory_2_outlined':
+        return Icons.inventory_2_outlined;
+      case 'star_outline':
+        return Icons.star_outline;
+      case 'support_agent_outlined':
+        return Icons.support_agent_outlined;
+      case 'verified_outlined':
+        return Icons.verified_outlined;
+      case 'local_shipping_outlined':
+        return Icons.local_shipping_outlined;
+      default:
+        return Icons.star_outline;
+    }
+  }
+
+  // Helper method to launch URLs
+  void _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
   }
 
   Widget _buildCategoriesSection() {
@@ -619,127 +696,356 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildDealsSection() {
+  Widget _buildSaleProductsSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isMobile = constraints.maxWidth < 768;
+        final bool isTablet =
+            constraints.maxWidth >= 768 && constraints.maxWidth < 1024;
 
-        return Container(
-          margin: EdgeInsets.all(isMobile ? 20 : 40),
-          padding: EdgeInsets.all(isMobile ? 24 : 40),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF667EEA).withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Text(
-                        '⚡ LIMITED TIME',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      isMobile ? 'Special Deals' : 'Special Deals & Offers',
-                      style: TextStyle(
-                        fontSize: isMobile ? 28 : 36,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Up to 70% off on selected items. Limited time only!',
-                      style: TextStyle(
-                        fontSize: isMobile ? 14 : 16,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () => context.go('/products'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF667EEA),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isMobile ? 24 : 32,
-                          vertical: isMobile ? 12 : 16,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+        return Consumer<ProductProvider>(
+          builder: (context, productProvider, child) {
+            if (productProvider.isLoading) {
+              return const SizedBox.shrink();
+            }
+
+            final saleProducts = productProvider.products
+                .where((product) => product.isOnSale)
+                .take(6)
+                .toList();
+
+            if (saleProducts.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return Container(
+              padding: EdgeInsets.all(isMobile ? 20 : 40),
+              color: const Color(0xFFFAFBFC),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Shop Deals',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFF6B6B),
+                                      Color(0xFFFFE66D)
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.local_offer,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Sale Products',
+                                style: TextStyle(
+                                  fontSize: isMobile ? 24 : 32,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFF1A365D),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text(
+                                'Limited time offers • Up to ',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              Consumer<ProductProvider>(
+                                builder: (context, provider, child) {
+                                  final maxDiscount = provider.products
+                                      .where((p) => p.isOnSale)
+                                      .fold<double>(0, (max, product) {
+                                    final discount =
+                                        product.calculatedDiscountPercentage;
+                                    return discount > max ? discount : max;
+                                  });
+
+                                  return Text(
+                                    '${maxDiscount.toStringAsFixed(0)}% OFF',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ],
                       ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${saleProducts.length} ITEMS',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
+                      crossAxisSpacing: 20,
+                      mainAxisSpacing: 20,
+                      childAspectRatio: isMobile ? 1.2 : 0.8,
                     ),
-                  ],
-                ),
+                    itemCount: saleProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = saleProducts[index];
+                      return ProductCard(product: product);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
+                        ),
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF6B6B).withOpacity(0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.go('/products?filter=sale'),
+                        icon: const Icon(Icons.local_offer),
+                        label: const Text('View All Sale Products'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobile ? 24 : 32,
+                            vertical: isMobile ? 12 : 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              if (!isMobile) ...[
-                const SizedBox(width: 40),
-                Container(
-                  width: 150,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.local_offer_outlined,
-                    size: 60,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildNewsletterSection() {
+  Widget _buildDealsSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isMobile = constraints.maxWidth < 768;
+
+        return Consumer<ProductProvider>(
+          builder: (context, productProvider, child) {
+            final saleProducts = productProvider.products
+                .where((product) => product.isOnSale)
+                .toList();
+
+            final totalSavings = saleProducts.fold<double>(0, (sum, product) {
+              return sum + product.savingsAmount;
+            });
+
+            final averageDiscount = saleProducts.isNotEmpty
+                ? saleProducts.fold<double>(0, (sum, product) {
+                      return sum + product.calculatedDiscountPercentage;
+                    }) /
+                    saleProducts.length
+                : 0;
+
+            return Container(
+              margin: EdgeInsets.all(isMobile ? 20 : 40),
+              padding: EdgeInsets.all(isMobile ? 24 : 40),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF667EEA).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            saleProducts.isNotEmpty
+                                ? '⚡ ${saleProducts.length} ITEMS ON SALE'
+                                : '⚡ LIMITED TIME',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          isMobile ? 'Special Deals' : 'Special Deals & Offers',
+                          style: TextStyle(
+                            fontSize: isMobile ? 28 : 36,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          saleProducts.isNotEmpty
+                              ? 'Up to ${averageDiscount.toStringAsFixed(0)}% off • Save up to ₹${totalSavings.toStringAsFixed(0)}!'
+                              : 'Up to 70% off on selected items. Limited time only!',
+                          style: TextStyle(
+                            fontSize: isMobile ? 14 : 16,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () => context.go('/products?filter=sale'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF667EEA),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isMobile ? 24 : 32,
+                              vertical: isMobile ? 12 : 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                saleProducts.isNotEmpty
+                                    ? 'Shop Deals'
+                                    : 'Shop Now',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.local_offer),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isMobile) ...[
+                    const SizedBox(width: 40),
+                    Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.local_offer_outlined,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(height: 8),
+                          if (saleProducts.isNotEmpty) ...[
+                            Text(
+                              '${saleProducts.length}',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const Text(
+                              'ITEMS ON SALE',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNewsletterSection(WebsiteConfig? websiteConfig) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 768;
+        final siteName = websiteConfig?.siteName ?? 'WellnessHub';
 
         return Container(
           margin: EdgeInsets.all(isMobile ? 20 : 40),
@@ -755,16 +1061,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             children: [
               Text(
-                'Stay Updated',
+                'Stay Updated with $siteName',
                 style: TextStyle(
                   fontSize: isMobile ? 28 : 36,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               Text(
-                'Get the latest updates on new products and exclusive offers',
+                'Get the latest updates on new products, exclusive offers, and flash sales',
                 style: TextStyle(
                   fontSize: isMobile ? 14 : 16,
                   color: Colors.white70,
@@ -780,7 +1087,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         children: [
                           TextField(
                             decoration: InputDecoration(
-                              hintText: 'Enter your email',
+                              hintText: 'Enter your email for deals',
                               hintStyle: TextStyle(color: Colors.grey[400]),
                               filled: true,
                               fillColor: Colors.white,
@@ -809,7 +1116,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ),
                               ),
                               child: const Text(
-                                'Subscribe',
+                                'Subscribe for Deals',
                                 style: TextStyle(fontWeight: FontWeight.w700),
                               ),
                             ),
@@ -821,7 +1128,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           Expanded(
                             child: TextField(
                               decoration: InputDecoration(
-                                hintText: 'Enter your email',
+                                hintText:
+                                    'Enter your email for exclusive deals',
                                 hintStyle: TextStyle(color: Colors.grey[400]),
                                 filled: true,
                                 fillColor: Colors.white,
@@ -865,10 +1173,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildFooterSection() {
+  Widget _buildFooterSection(WebsiteConfig? websiteConfig) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isMobile = constraints.maxWidth < 768;
+        final siteName = websiteConfig?.siteName ?? 'WellnessHub';
+        final logoUrl = websiteConfig?.logoUrl;
+        final description = websiteConfig?.description ??
+            'Your trusted partner for premium quality products. We deliver excellence with every purchase and amazing deals.';
+        final footerText = websiteConfig?.footerText ??
+            '© 2024 WellnessHub. All rights reserved.';
+        final socialMedia = websiteConfig?.socialMedia;
 
         return Container(
           padding: EdgeInsets.all(isMobile ? 20 : 40),
@@ -879,7 +1194,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildFooterBrand(),
+                    _buildFooterBrand(siteName, logoUrl, description),
                     const SizedBox(height: 32),
                     _buildFooterLinks(),
                   ],
@@ -888,7 +1203,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 2, child: _buildFooterBrand()),
+                    Expanded(
+                        flex: 2,
+                        child:
+                            _buildFooterBrand(siteName, logoUrl, description)),
                     Expanded(flex: 3, child: _buildFooterLinks()),
                   ],
                 ),
@@ -898,25 +1216,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '© 2024 WellnessHub. All rights reserved.',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 14,
+                  Expanded(
+                    child: Text(
+                      footerText,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                  if (!isMobile)
+                  if (!isMobile && socialMedia != null)
                     Row(
                       children: [
-                        _buildSocialButton(Icons.facebook),
-                        const SizedBox(width: 12),
-                        _buildSocialButton(Icons.alternate_email),
-                        const SizedBox(width: 12),
-                        _buildSocialButton(Icons.message),
-                      ],
+                        if (socialMedia.facebook.isNotEmpty)
+                          _buildSocialButton(
+                              Icons.facebook, socialMedia.facebook),
+                        if (socialMedia.instagram.isNotEmpty)
+                          _buildSocialButton(
+                              Icons.camera_alt, socialMedia.instagram),
+                        if (socialMedia.twitter.isNotEmpty)
+                          _buildSocialButton(
+                              Icons.alternate_email, socialMedia.twitter),
+                        if (socialMedia.whatsapp.isNotEmpty)
+                          _buildSocialButton(Icons.message,
+                              'https://wa.me/${socialMedia.whatsapp}'),
+                        if (socialMedia.email.isNotEmpty)
+                          _buildSocialButton(
+                              Icons.email, 'mailto:${socialMedia.email}'),
+                      ]
+                          .where((widget) => widget != null)
+                          .map((widget) => Padding(
+                                padding: const EdgeInsets.only(left: 12),
+                                child: widget!,
+                              ))
+                          .toList(),
                     ),
                 ],
               ),
+              if (isMobile && socialMedia != null) ...[
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  children: [
+                    if (socialMedia.facebook.isNotEmpty)
+                      _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                    if (socialMedia.instagram.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.camera_alt, socialMedia.instagram),
+                    if (socialMedia.twitter.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.alternate_email, socialMedia.twitter),
+                    if (socialMedia.whatsapp.isNotEmpty)
+                      _buildSocialButton(Icons.message,
+                          'https://wa.me/${socialMedia.whatsapp}'),
+                    if (socialMedia.email.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.email, 'mailto:${socialMedia.email}'),
+                  ].where((widget) => widget != null).cast<Widget>().toList(),
+                ),
+              ],
             ],
           ),
         );
@@ -924,30 +1282,82 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildFooterBrand() {
+  Widget _buildFooterBrand(
+      String siteName, String? logoUrl, String description) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+            if (logoUrl?.isNotEmpty == true)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                borderRadius: BorderRadius.circular(12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    logoUrl!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
-              child: const Icon(
-                Icons.favorite_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
             const SizedBox(width: 12),
-            const Text(
-              'WellnessHub',
-              style: TextStyle(
+            Text(
+              siteName,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
@@ -957,7 +1367,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 16),
         Text(
-          'Your trusted partner for premium quality products. We deliver excellence with every purchase.',
+          description,
           style: TextStyle(
             color: Colors.white.withOpacity(0.8),
             fontSize: 16,
@@ -979,8 +1389,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _buildFooterColumn('Quick Links', [
                 'About Us',
                 'Our Story',
+                'Sale Products',
                 'Careers',
-                'Press',
               ]),
               const SizedBox(height: 24),
               _buildFooterColumn('Customer Care', [
@@ -1007,8 +1417,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             _buildFooterColumn('Quick Links', [
               'About Us',
               'Our Story',
+              'Sale Products',
               'Careers',
-              'Press',
             ]),
             _buildFooterColumn('Customer Care', [
               'Help Center',
@@ -1045,10 +1455,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               padding: const EdgeInsets.only(bottom: 8),
               child: GestureDetector(
                 onTap: () {
-                  // Handle navigation based on link
                   switch (link.toLowerCase()) {
                     case 'about us':
                       context.go('/about');
+                      break;
+                    case 'sale products':
+                      context.go('/products?filter=sale');
                       break;
                     case 'help center':
                       context.go('/help');
@@ -1076,11 +1488,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSocialButton(IconData icon) {
+  Widget? _buildSocialButton(IconData icon, String url) {
+    if (url.isEmpty) return null;
+
     return GestureDetector(
-      onTap: () {
-        // Handle social media navigation
-      },
+      onTap: () => _launchUrl(url),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -1097,7 +1509,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 }
 
-// Custom Painter for Background Pattern
+// Custom Painter for Background Pattern (unchanged)
 class GeometricPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

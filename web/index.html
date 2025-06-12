@@ -33,6 +33,28 @@
   <title>keiwaywellness</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- Firebase Configuration Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  
+  <!-- Firebase Configuration -->
+  <script>
+    // Your Firebase configuration object
+    const firebaseConfig = {
+      apiKey: "AIzaSyDqKO8TDueGQB7IVStb9bZm94_z4XbFIUk",
+      authDomain: "keiwaywellness-810f7.firebaseapp.com",
+      projectId: "keiwaywellness-810f7",
+      storageBucket: "keiwaywellness-810f7.firebasestorage.app",
+      messagingSenderId: "103802144677",
+      appId: "1:103802144677:web:dc5a1b4c4d4156cc59ca4c"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
   <!-- PhonePe Checkout Script for Web Integration -->
   <script src="https://mercury.phonepe.com/web/bundle/checkout.js" defer></script>
   
@@ -78,9 +100,60 @@
       return !!(window.PhonePeCheckout && window.PhonePeCheckout.transact);
     };
   </script>
+
+  <!-- Image Picker Web Support -->
+  <script>
+    // Image picker polyfill for web
+    window.imagePicker = {
+      pickImage: function(source, callback) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        
+        if (source === 'camera') {
+          input.capture = 'environment';
+        }
+        
+        input.onchange = function(event) {
+          const file = event.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              callback({
+                success: true,
+                data: e.target.result,
+                file: file
+              });
+            };
+            reader.readAsDataURL(file);
+          } else {
+            callback({ success: false });
+          }
+        };
+        
+        input.click();
+      },
+      
+      // Helper function to convert data URL to blob
+      dataURLtoBlob: function(dataURL) {
+        const arr = dataURL.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+      }
+    };
+  </script>
   
 </head>
 <body>
+  <!-- Add file input for image picker fallback -->
+  <input type="file" id="hiddenFileInput" accept="image/*" style="display: none;">
+  
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
