@@ -423,7 +423,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                             crossAxisCount: isMobile ? 2 : (isTablet ? 3 : 4),
                             crossAxisSpacing: isMobile ? 16 : 24,
                             mainAxisSpacing: isMobile ? 16 : 24,
-                            childAspectRatio: isMobile ? 0.9 : 1.0,
+                            childAspectRatio: isMobile ? 0.8 : 0.8,
                           ),
                           itemCount: filteredCategories.length,
                           itemBuilder: (context, index) {

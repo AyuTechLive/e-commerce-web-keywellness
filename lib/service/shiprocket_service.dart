@@ -1,7 +1,8 @@
-// services/delhivery_service.dart - Firebase Functions Integration
+// services/delhivery_service.dart - Complete Flutter Delhivery Integration
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:keiwaywellness/helper/delihvery_tracker_parser.dart';
 import '../models/order.dart';
 
 class DelhiveryService {
@@ -41,7 +42,6 @@ class DelhiveryService {
       }
     } on FirebaseFunctionsException catch (e) {
       print('💥 Firebase Functions Exception: ${e.code} - ${e.message}');
-
       return {
         'serviceable': false,
         'error': e.code,
@@ -58,74 +58,125 @@ class DelhiveryService {
     }
   }
 
-  /// Create order with Delhivery via Firebase Functions
-  static Future<Map<String, dynamic>?> createOrder({
-    required OrderModel order,
+  /// Create Delhivery shipment with structured address data
+  static Future<Map<String, dynamic>?> createShipment({
+    required String orderId,
     required Map<String, dynamic> customerDetails,
     required Map<String, dynamic> shippingAddress,
-    String paymentMode = 'COD',
+    required List<CartItemModel> items,
+    required double total,
+    String paymentMode = 'Prepaid',
   }) async {
     try {
       print(
-          '📦 Creating Delhivery order via Firebase Functions for: ${order.id}');
+          '📦 Creating Delhivery shipment via Firebase Functions for: $orderId');
       print('💰 Payment mode: $paymentMode');
 
       final HttpsCallable callable =
-          _functions.httpsCallable('createDelhiveryOrder');
+          _functions.httpsCallable('createDelhiveryShipment');
+
+      // Prepare structured address data
+      final addressData = {
+        'name': shippingAddress['name'] ?? customerDetails['name'],
+        'addressLine1':
+            shippingAddress['addressLine1'] ?? shippingAddress['address'],
+        'addressLine2': shippingAddress['addressLine2'] ?? '',
+        'city': shippingAddress['city'],
+        'state': shippingAddress['state'],
+        'pinCode': shippingAddress['pinCode'] ?? shippingAddress['pincode'],
+        'phone': customerDetails['phone'],
+        'country': 'India'
+      };
 
       final requestData = {
-        'orderId': order.id,
-        'orderDate': order.createdAt.toIso8601String(),
-        'customerDetails': customerDetails,
-        'shippingAddress': shippingAddress,
-        'items': order.items
+        'orderId': orderId,
+        'customerDetails': {
+          'name': customerDetails['name'],
+          'lastName': customerDetails['lastName'] ?? '',
+          'email': customerDetails['email'],
+          'phone': customerDetails['phone'],
+        },
+        'shippingAddress': addressData,
+        'items': items
             .map((item) => {
                   'name': item.name,
                   'quantity': item.quantity,
                   'price': item.price,
                   'total': item.total,
+                  'originalPrice': item.originalPrice,
                 })
             .toList(),
-        'total': order.total,
+        'total': total,
         'paymentMode': paymentMode,
       };
 
-      print(
-          '📋 Calling Firebase Function with data keys: ${requestData.keys.join(', ')}');
+      print('📋 Calling Firebase Function with structured address data');
 
       final result = await callable.call(requestData);
 
-      print('📥 Delhivery Create Order Response: ${result.data}');
+      print('📥 Delhivery Shipment Response: ${result.data}');
 
       if (result.data['success'] == true) {
-        print('✅ Delhivery order created successfully via Firebase Functions');
+        print(
+            '✅ Delhivery shipment created successfully via Firebase Functions');
         return result.data;
       } else {
         throw Exception(
-            'Delhivery order creation failed: ${result.data['error']}');
+            'Delhivery shipment creation failed: ${result.data['error']}');
       }
     } on FirebaseFunctionsException catch (e) {
       print('💥 Firebase Functions Exception: ${e.code} - ${e.message}');
       print('Details: ${e.details}');
       rethrow;
     } catch (e) {
-      print('❌ Delhivery order creation error: $e');
+      print('❌ Delhivery shipment creation error: $e');
       rethrow;
     }
   }
 
-  /// Track shipment via Firebase Functions
-  static Future<Map<String, dynamic>?> trackShipment(String waybill) async {
+  /// Track shipment by waybill or order ID
+  static Future<Map<String, dynamic>?> trackShipment({
+    String? waybill,
+    String? orderId,
+  }) async {
     try {
-      print('📍 Tracking shipment via Firebase Functions: $waybill');
+      if (waybill == null && orderId == null) {
+        throw Exception('Either waybill or orderId is required');
+      }
+
+      print('📍 Tracking shipment via Firebase Functions...');
+      if (waybill != null) print('📦 Waybill: $waybill');
+      if (orderId != null) print('🆔 Order ID: $orderId');
 
       final HttpsCallable callable =
           _functions.httpsCallable('trackDelhiveryShipment');
-      final result = await callable.call({'waybill': waybill});
+      final requestData = <String, dynamic>{};
 
-      print('📥 Tracking Response: ${result.data}');
+      if (waybill != null) requestData['waybill'] = waybill;
+      if (orderId != null) requestData['orderId'] = orderId;
+
+      final result = await callable.call(requestData);
+
+      print('📥 Raw Tracking Response: ${result.data}');
 
       if (result.data['success'] == true) {
+        // Parse the raw Delhivery response into user-friendly format
+        final rawData = result.data;
+
+        // If we have detailed shipment data, parse it
+        if (rawData['shipment_info'] != null) {
+          final parsedData = DelhiveryTrackingParser.parseTrackingData({
+            'ShipmentData': [
+              {'Shipment': rawData['shipment_info']}
+            ]
+          });
+
+          if (parsedData['success'] == true) {
+            return parsedData;
+          }
+        }
+
+        // Fallback to original data format
         return result.data;
       } else {
         return {
@@ -151,66 +202,68 @@ class DelhiveryService {
     }
   }
 
-  /// Track shipment by order ID via Firebase Functions
-  static Future<Map<String, dynamic>?> trackByOrderId(String orderId) async {
+  /// Get comprehensive order tracking information
+  static Future<Map<String, dynamic>?> getOrderTracking(String orderId) async {
     try {
-      print('📍 Tracking by order ID via Firebase Functions: $orderId');
+      print('📍 Getting comprehensive order tracking for: $orderId');
 
       final HttpsCallable callable =
-          _functions.httpsCallable('trackDelhiveryShipment');
+          _functions.httpsCallable('getOrderTracking');
       final result = await callable.call({'orderId': orderId});
 
-      print('📥 Tracking by Order ID Response: ${result.data}');
+      print('📥 Order Tracking Response: ${result.data}');
 
-      return result.data;
+      if (result.data['success'] == true) {
+        return result.data['tracking_info'];
+      } else {
+        return {
+          'success': false,
+          'message': result.data['message'] ?? 'Order tracking failed',
+        };
+      }
     } on FirebaseFunctionsException catch (e) {
       print(
-          '💥 Tracking by Order ID Firebase Functions Exception: ${e.code} - ${e.message}');
+          '💥 Order Tracking Firebase Functions Exception: ${e.code} - ${e.message}');
       return {
         'success': false,
         'error': e.code,
         'message': _getErrorMessage(e.code),
       };
     } catch (e) {
-      print('❌ Tracking by order ID error: $e');
+      print('❌ Order tracking error: $e');
       return {
         'success': false,
         'error': 'unknown',
-        'message': 'Tracking request failed',
+        'message': 'Order tracking request failed',
       };
     }
   }
 
-  /// Get bulk waybills via Firebase Functions
-  static Future<List<String>?> fetchWaybills(int count) async {
+  /// Retry failed Delhivery shipment creation
+  static Future<Map<String, dynamic>?> retryShipment(String orderId) async {
     try {
-      if (count > 100) {
-        print('❌ Maximum 100 waybills can be fetched in one request');
-        return null;
-      }
-
-      print('📦 Fetching $count waybills via Firebase Functions...');
+      print('🔄 Retrying Delhivery shipment for: $orderId');
 
       final HttpsCallable callable =
-          _functions.httpsCallable('fetchDelhiveryWaybills');
-      final result = await callable.call({'count': count});
+          _functions.httpsCallable('retryDelhiveryShipment');
+      final result = await callable.call({'orderId': orderId});
 
-      print('📥 Waybill Response: ${result.data}');
-
-      if (result.data['success'] == true) {
-        final waybills = List<String>.from(result.data['waybills'] ?? []);
-        print('✅ Fetched ${waybills.length} waybills via Firebase Functions');
-        return waybills;
-      } else {
-        return null;
-      }
+      print('📥 Retry Response: ${result.data}');
+      return result.data;
     } on FirebaseFunctionsException catch (e) {
-      print(
-          '💥 Waybill fetch Firebase Functions Exception: ${e.code} - ${e.message}');
-      return null;
+      print('💥 Retry Firebase Functions Exception: ${e.code} - ${e.message}');
+      return {
+        'success': false,
+        'error': e.code,
+        'message': _getErrorMessage(e.code),
+      };
     } catch (e) {
-      print('❌ Waybill fetch error: $e');
-      return null;
+      print('❌ Retry error: $e');
+      return {
+        'success': false,
+        'error': 'unknown',
+        'message': 'Retry request failed',
+      };
     }
   }
 
@@ -248,13 +301,22 @@ class DelhiveryService {
 
   /// Print configuration information
   static void printConfiguration() {
-    print('🚚 Delhivery Service Configuration:');
+    print('🚚 Enhanced Delhivery Service Configuration:');
     print('🌐 Integration: Firebase Functions (Server-side)');
-    print('🔗 Method: Cloud Functions Proxy');
+    print('🔗 Method: Cloud Functions Proxy with structured address handling');
     print('🔑 Authentication: Server-side token management');
-    print('📋 Available Services: Serviceability, Order Creation, Tracking');
+    print(
+        '📋 Available Services: Serviceability, Shipment Creation, Real-time Tracking');
+    print(
+        '📍 Address Format: Structured fields (addressLine1, city, state, pinCode)');
+    print(
+        '📦 Shipment Features: Automatic retry, waybill generation, tracking URLs');
+    print(
+        '🚛 Tracking Methods: By waybill, by order ID, comprehensive order tracking');
     print('✅ CORS Issue: Resolved via Firebase Functions');
     print('🔒 Security: Token secured on server-side');
+    print(
+        '🎯 Integration Points: Checkout, Payment Verification, Order Success');
   }
 
   /// Get error message based on Firebase Functions error code
@@ -295,7 +357,7 @@ class DelhiveryService {
 
   /// Print troubleshooting information based on error response
   static void _printTroubleshootingInfo(Map<String, dynamic> errorData) {
-    print('🔧 Delhivery Troubleshooting Information:');
+    print('🔧 Enhanced Delhivery Troubleshooting Information:');
     print('');
     print('❌ Connection failed with details:');
     print('   Error Type: ${errorData['error']}');
@@ -320,6 +382,12 @@ class DelhiveryService {
       print('   1. Check Firebase Functions connectivity');
       print('   2. Verify internet connection');
       print('   3. Check if Delhivery services are available');
+    } else if (errorData['error'] == 'address') {
+      print('📍 Address Issues:');
+      print('   1. Ensure all required address fields are provided');
+      print('   2. Verify pincode format (6 digits)');
+      print('   3. Check if address components are properly structured');
+      print('   4. Confirm serviceability for the pincode');
     }
 
     print('');
@@ -327,16 +395,227 @@ class DelhiveryService {
     print('   Email: clientservice@delhivery.com');
     print('   Subject: API Integration Support - Firebase Functions');
     print('');
-    print('💡 Note: All API calls are now routed through Firebase Functions');
-    print('   This resolves CORS issues and secures API credentials.');
+    print('💡 Enhanced Features:');
+    print('   - Structured address handling');
+    print('   - Real-time shipment tracking');
+    print('   - Automatic retry mechanisms');
+    print('   - Comprehensive order tracking');
+    print('   - Waybill generation and management');
+  }
+
+  /// Validate address structure before creating shipment
+  static Map<String, String> validateAddressStructure(
+      Map<String, dynamic> address) {
+    final errors = <String, String>{};
+
+    if (address['addressLine1'] == null ||
+        address['addressLine1'].toString().trim().isEmpty) {
+      errors['addressLine1'] = 'Address line 1 is required';
+    }
+
+    if (address['city'] == null || address['city'].toString().trim().isEmpty) {
+      errors['city'] = 'City is required';
+    }
+
+    if (address['state'] == null ||
+        address['state'].toString().trim().isEmpty) {
+      errors['state'] = 'State is required';
+    }
+
+    final pincode = address['pinCode'] ?? address['pincode'];
+    if (pincode == null || pincode.toString().trim().isEmpty) {
+      errors['pincode'] = 'PIN code is required';
+    } else if (!RegExp(r'^\d{6}$').hasMatch(pincode.toString())) {
+      errors['pincode'] = 'PIN code must be 6 digits';
+    }
+
+    return errors;
+  }
+
+  /// Format address for display
+  static String formatAddressForDisplay(Map<String, dynamic> address) {
+    final parts = <String>[];
+
+    if (address['name'] != null && address['name'].toString().isNotEmpty) {
+      parts.add(address['name'].toString());
+    }
+
+    if (address['addressLine1'] != null &&
+        address['addressLine1'].toString().isNotEmpty) {
+      parts.add(address['addressLine1'].toString());
+    }
+
+    if (address['addressLine2'] != null &&
+        address['addressLine2'].toString().isNotEmpty) {
+      parts.add(address['addressLine2'].toString());
+    }
+
+    if (address['city'] != null && address['city'].toString().isNotEmpty) {
+      parts.add(address['city'].toString());
+    }
+
+    if (address['state'] != null && address['state'].toString().isNotEmpty) {
+      parts.add(address['state'].toString());
+    }
+
+    final pincode = address['pinCode'] ?? address['pincode'];
+    if (pincode != null && pincode.toString().isNotEmpty) {
+      parts.add(pincode.toString());
+    }
+
+    return parts.join(', ');
+  }
+
+  /// Extract tracking status for UI display
+  static Map<String, dynamic> parseTrackingStatus(
+      Map<String, dynamic> trackingData) {
+    final status =
+        trackingData['current_status']?.toString().toLowerCase() ?? 'unknown';
+
+    // Map Delhivery statuses to user-friendly messages
+    String displayStatus;
+    String statusDescription;
+    String statusColor;
+    int progressLevel;
+
+    switch (status) {
+      case 'manifested':
+      case 'manifest':
+        displayStatus = 'Order Shipped';
+        statusDescription = 'Your order has been dispatched and is on its way';
+        statusColor = 'blue';
+        progressLevel = 1;
+        break;
+      case 'in-transit':
+      case 'in transit':
+        displayStatus = 'In Transit';
+        statusDescription = 'Your package is traveling to its destination';
+        statusColor = 'orange';
+        progressLevel = 2;
+        break;
+      case 'out-for-delivery':
+      case 'out for delivery':
+        displayStatus = 'Out for Delivery';
+        statusDescription = 'Your package is out for delivery today';
+        statusColor = 'green';
+        progressLevel = 3;
+        break;
+      case 'delivered':
+        displayStatus = 'Delivered';
+        statusDescription = 'Your package has been successfully delivered';
+        statusColor = 'success';
+        progressLevel = 4;
+        break;
+      case 'exception':
+      case 'delay':
+        displayStatus = 'Delayed';
+        statusDescription =
+            'There is a delay in delivery. We apologize for the inconvenience';
+        statusColor = 'warning';
+        progressLevel = 2;
+        break;
+      case 'rto':
+      case 'return':
+        displayStatus = 'Returning';
+        statusDescription = 'Package is being returned to sender';
+        statusColor = 'danger';
+        progressLevel = 1;
+        break;
+      default:
+        displayStatus = 'Processing';
+        statusDescription = 'Your order is being processed';
+        statusColor = 'info';
+        progressLevel = 0;
+    }
+
+    return {
+      'display_status': displayStatus,
+      'description': statusDescription,
+      'color': statusColor,
+      'progress_level': progressLevel,
+      'original_status': status,
+      'last_updated': trackingData['last_updated'],
+      'estimated_delivery': trackingData['estimated_delivery'],
+    };
+  }
+
+  /// Get tracking timeline for UI display
+  static List<Map<String, dynamic>> formatTrackingTimeline(
+      List<dynamic>? trackingHistory) {
+    if (trackingHistory == null || trackingHistory.isEmpty) {
+      return [];
+    }
+
+    return trackingHistory.map((scan) {
+      final scanData = scan as Map<String, dynamic>;
+      return {
+        'date': scanData['date'],
+        'status': scanData['status'] ?? scanData['description'],
+        'location': scanData['location'] ?? '',
+        'description': scanData['description'] ?? scanData['status'],
+        'remarks': scanData['remarks'] ?? '',
+        'formatted_date': _formatTrackingDate(scanData['date']),
+        'icon': _getTrackingIcon(
+            scanData['status']?.toString().toLowerCase() ?? ''),
+      };
+    }).toList();
+  }
+
+  /// Format tracking date for display
+  static String _formatTrackingDate(dynamic dateStr) {
+    if (dateStr == null) return '';
+
+    try {
+      final date = DateTime.parse(dateStr.toString());
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inDays == 0) {
+        return 'Today ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      } else if (difference.inDays == 1) {
+        return 'Yesterday ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      } else {
+        return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      }
+    } catch (e) {
+      return dateStr.toString();
+    }
+  }
+
+  /// Get appropriate icon for tracking status
+  static String _getTrackingIcon(String status) {
+    switch (status) {
+      case 'manifested':
+      case 'manifest':
+        return 'local_shipping';
+      case 'in-transit':
+      case 'in transit':
+        return 'local_shipping';
+      case 'out-for-delivery':
+      case 'out for delivery':
+        return 'delivery_dining';
+      case 'delivered':
+        return 'check_circle';
+      case 'exception':
+      case 'delay':
+        return 'warning';
+      case 'rto':
+      case 'return':
+        return 'undo';
+      default:
+        return 'info';
+    }
   }
 
   /// Print authentication troubleshooting information
   static void printAuthTroubleshooting() {
-    print('🔧 Delhivery Authentication Troubleshooting (Firebase Functions):');
+    print('🔧 Enhanced Delhivery Authentication Troubleshooting:');
     print('');
     print('📋 Current Setup:');
     print('   Integration: Server-side via Firebase Functions');
+    print(
+        '   Address Handling: Structured fields (addressLine1, city, state, pinCode)');
+    print('   Tracking: Real-time via API with waybill/order ID');
     print('   CORS: Resolved by server-side proxy');
     print('   Authentication: Managed server-side');
     print('');
@@ -345,9 +624,19 @@ class DelhiveryService {
     print('   2. Verify Delhivery token in Firebase Functions configuration');
     print('   3. Contact Delhivery for API access verification');
     print('   4. Check Firebase Functions logs for detailed errors');
+    print('   5. Ensure structured address data is being passed correctly');
     print('');
     print('🚀 Deploy Functions:');
     print('   cd functions && firebase deploy --only functions');
+    print('');
+    print('🔍 Address Structure Required:');
+    print('   - name: Customer name');
+    print('   - addressLine1: Street address (required)');
+    print('   - addressLine2: Apartment/building (optional)');
+    print('   - city: City name (required)');
+    print('   - state: State name (required)');
+    print('   - pinCode: 6-digit PIN code (required)');
+    print('   - phone: Contact number');
     print('');
     print('📞 Support:');
     print('   Delhivery: clientservice@delhivery.com');

@@ -1,76 +1,7 @@
-// models/cart_item_model.dart (renamed to avoid conflicts)
-// models/order_model.dart (renamed to avoid conflicts)
-class OrderModel {
-  final String id;
-  final String userId;
-  final List<CartItemModel> items;
-  final double total;
-  final double? originalTotal; // Add original total before discounts
-  final double? totalSavings; // Add total savings amount
-  final List<DiscountDetail>? discountDetails; // Add discount details
-  final String status;
-  final DateTime createdAt;
-  final String paymentId;
-  final String shippingAddress;
+// models/order.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-  OrderModel({
-    required this.id,
-    required this.userId,
-    required this.items,
-    required this.total,
-    this.originalTotal,
-    this.totalSavings,
-    this.discountDetails,
-    this.status = 'pending',
-    required this.createdAt,
-    this.paymentId = '',
-    required this.shippingAddress,
-  });
-
-  // Check if order has any discounts
-  bool get hasDiscounts {
-    return totalSavings != null && totalSavings! > 0;
-  }
-
-  factory OrderModel.fromMap(Map<String, dynamic> map, String id) {
-    return OrderModel(
-      id: id,
-      userId: map['userId'] ?? '',
-      items: (map['items'] as List<dynamic>?)
-              ?.map((item) => CartItemModel.fromMap(item))
-              .toList() ??
-          [],
-      total: (map['total'] ?? 0).toDouble(),
-      originalTotal: map['originalTotal']?.toDouble(),
-      totalSavings: map['totalSavings']?.toDouble(),
-      discountDetails: (map['discountDetails'] as List<dynamic>?)
-          ?.map((detail) => DiscountDetail.fromMap(detail))
-          .toList(),
-      status: map['status'] ?? 'pending',
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
-      paymentId: map['paymentId'] ?? '',
-      shippingAddress: map['shippingAddress'] ?? '',
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'userId': userId,
-      'items': items.map((item) => item.toMap()).toList(),
-      'total': total,
-      'originalTotal': originalTotal,
-      'totalSavings': totalSavings,
-      'discountDetails':
-          discountDetails?.map((detail) => detail.toMap()).toList(),
-      'status': status,
-      'createdAt': createdAt.millisecondsSinceEpoch,
-      'paymentId': paymentId,
-      'shippingAddress': shippingAddress,
-    };
-  }
-}
-
-// models/cart_item_model.dart (renamed to avoid conflicts)
+// Enhanced CartItemModel with quantity and unit support
 class CartItemModel {
   final String productId;
   final String name;
@@ -79,6 +10,12 @@ class CartItemModel {
   final String imageUrl;
   int quantity;
 
+  // New quantity and unit fields
+  final double?
+      productQuantity; // Product package quantity (e.g., 500 for 500ml)
+  final String? productUnit; // Product unit (e.g., "ml", "gm", "capsules")
+  final String? quantityDisplay; // Combined display like "500ml", "30 capsules"
+
   CartItemModel({
     required this.productId,
     required this.name,
@@ -86,6 +23,9 @@ class CartItemModel {
     this.originalPrice,
     required this.imageUrl,
     this.quantity = 1,
+    this.productQuantity,
+    this.productUnit,
+    this.quantityDisplay,
   });
 
   double get total => price * quantity;
@@ -119,6 +59,59 @@ class CartItemModel {
     return 0.0;
   }
 
+  // Get formatted quantity display for the product package
+  String get formattedProductQuantity {
+    if (quantityDisplay != null && quantityDisplay!.isNotEmpty) {
+      return quantityDisplay!;
+    }
+
+    if (productQuantity != null && productUnit != null) {
+      String quantityStr = productQuantity! % 1 == 0
+          ? productQuantity!.toInt().toString()
+          : productQuantity!.toString();
+
+      return '$quantityStr $productUnit';
+    }
+
+    return '';
+  }
+
+  // Get total product quantity (cart quantity × package quantity)
+  double? get totalProductQuantity {
+    if (productQuantity != null) {
+      return productQuantity! * quantity;
+    }
+    return null;
+  }
+
+  // Get formatted total quantity
+  String get formattedTotalQuantity {
+    if (totalProductQuantity != null && productUnit != null) {
+      String quantityStr = totalProductQuantity! % 1 == 0
+          ? totalProductQuantity!.toInt().toString()
+          : totalProductQuantity!.toString();
+
+      return '$quantityStr $productUnit total';
+    }
+    return '';
+  }
+
+  // Get price per unit
+  double? get pricePerUnit {
+    if (productQuantity != null && productQuantity! > 0) {
+      return price / productQuantity!;
+    }
+    return null;
+  }
+
+  // Get formatted price per unit
+  String get formattedPricePerUnit {
+    if (pricePerUnit != null && productUnit != null) {
+      return '₹${pricePerUnit!.toStringAsFixed(2)}/${productUnit}';
+    }
+    return '';
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'productId': productId,
@@ -127,6 +120,9 @@ class CartItemModel {
       'originalPrice': originalPrice,
       'imageUrl': imageUrl,
       'quantity': quantity,
+      'productQuantity': productQuantity,
+      'productUnit': productUnit,
+      'quantityDisplay': quantityDisplay,
     };
   }
 
@@ -138,6 +134,34 @@ class CartItemModel {
       originalPrice: map['originalPrice']?.toDouble(),
       imageUrl: map['imageUrl'] ?? '',
       quantity: map['quantity'] ?? 1,
+      productQuantity: map['productQuantity']?.toDouble(),
+      productUnit: map['productUnit'],
+      quantityDisplay: map['quantityDisplay'],
+    );
+  }
+
+  // Copy with method for easy updates
+  CartItemModel copyWith({
+    String? productId,
+    String? name,
+    double? price,
+    double? originalPrice,
+    String? imageUrl,
+    int? quantity,
+    double? productQuantity,
+    String? productUnit,
+    String? quantityDisplay,
+  }) {
+    return CartItemModel(
+      productId: productId ?? this.productId,
+      name: name ?? this.name,
+      price: price ?? this.price,
+      originalPrice: originalPrice ?? this.originalPrice,
+      imageUrl: imageUrl ?? this.imageUrl,
+      quantity: quantity ?? this.quantity,
+      productQuantity: productQuantity ?? this.productQuantity,
+      productUnit: productUnit ?? this.productUnit,
+      quantityDisplay: quantityDisplay ?? this.quantityDisplay,
     );
   }
 }
@@ -180,5 +204,134 @@ class DiscountDetail {
       'savingsAmount': savingsAmount,
       'discountPercentage': discountPercentage,
     };
+  }
+}
+
+// OrderModel with Firestore Timestamp support
+class OrderModel {
+  final String id;
+  final String userId;
+  final List<CartItemModel> items;
+  final double total;
+  final double? originalTotal;
+  final double? totalSavings;
+  final bool hasDiscounts;
+  final Map<String, dynamic> shippingAddress;
+  final Map<String, dynamic> customerDetails;
+  final String status;
+  final String paymentStatus;
+  final String? shippingStatus;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final Map<String, dynamic>? delhivery; // Add this field
+  final Map<String, dynamic>? paymentData;
+
+  OrderModel({
+    required this.id,
+    required this.userId,
+    required this.items,
+    required this.total,
+    this.originalTotal,
+    this.totalSavings,
+    this.hasDiscounts = false,
+    required this.shippingAddress,
+    required this.customerDetails,
+    required this.status,
+    required this.paymentStatus,
+    this.shippingStatus,
+    required this.createdAt,
+    this.updatedAt,
+    this.delhivery, // Add this parameter
+    this.paymentData,
+  });
+
+  // Update the fromMap factory constructor
+  factory OrderModel.fromMap(Map<String, dynamic> map, String id) {
+    return OrderModel(
+      id: id,
+      userId: map['userId'] ?? '',
+      items: (map['items'] as List<dynamic>?)
+              ?.map(
+                  (item) => CartItemModel.fromMap(item as Map<String, dynamic>))
+              .toList() ??
+          [],
+      total: (map['total'] ?? 0).toDouble(),
+      originalTotal: map['originalTotal']?.toDouble(),
+      totalSavings: map['totalSavings']?.toDouble(),
+      hasDiscounts: map['hasDiscounts'] ?? false,
+      shippingAddress: Map<String, dynamic>.from(map['shippingAddress'] ?? {}),
+      customerDetails: Map<String, dynamic>.from(map['customerDetails'] ?? {}),
+      status: map['status'] ?? 'pending',
+      paymentStatus: map['paymentStatus'] ?? 'pending',
+      shippingStatus: map['shippingStatus'],
+      createdAt: map['createdAt']?.toDate() ?? DateTime.now(),
+      updatedAt: map['updatedAt']?.toDate(),
+      delhivery: map['delhivery'] != null
+          ? Map<String, dynamic>.from(map['delhivery'])
+          : null, // Add this line
+      paymentData: map['paymentData'] != null
+          ? Map<String, dynamic>.from(map['paymentData'])
+          : null,
+    );
+  }
+
+  // Update the toMap method
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'items': items.map((item) => item.toMap()).toList(),
+      'total': total,
+      'originalTotal': originalTotal,
+      'totalSavings': totalSavings,
+      'hasDiscounts': hasDiscounts,
+      'shippingAddress': shippingAddress,
+      'customerDetails': customerDetails,
+      'status': status,
+      'paymentStatus': paymentStatus,
+      'shippingStatus': shippingStatus,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'delhivery': delhivery, // Add this line
+      'paymentData': paymentData,
+    };
+  }
+
+  // Add copyWith method if you don't have one
+  OrderModel copyWith({
+    String? id,
+    String? userId,
+    List<CartItemModel>? items,
+    double? total,
+    double? originalTotal,
+    double? totalSavings,
+    bool? hasDiscounts,
+    Map<String, dynamic>? shippingAddress,
+    Map<String, dynamic>? customerDetails,
+    String? status,
+    String? paymentStatus,
+    String? shippingStatus,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Map<String, dynamic>? delhivery, // Add this parameter
+    Map<String, dynamic>? paymentData,
+  }) {
+    return OrderModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      items: items ?? this.items,
+      total: total ?? this.total,
+      originalTotal: originalTotal ?? this.originalTotal,
+      totalSavings: totalSavings ?? this.totalSavings,
+      hasDiscounts: hasDiscounts ?? this.hasDiscounts,
+      shippingAddress: shippingAddress ?? this.shippingAddress,
+      customerDetails: customerDetails ?? this.customerDetails,
+      status: status ?? this.status,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      shippingStatus: shippingStatus ?? this.shippingStatus,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      delhivery: delhivery ?? this.delhivery, // Add this line
+      paymentData: paymentData ?? this.paymentData,
+    );
   }
 }

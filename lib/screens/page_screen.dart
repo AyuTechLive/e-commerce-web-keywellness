@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/website_content_provider.dart';
 import '../widgets/app_bar_widget.dart';
 import '../models/website_content.dart';
@@ -432,22 +433,333 @@ class _AboutUsScreenState extends State<AboutUsScreen>
   }
 
   Widget _buildFooterSection(WebsiteConfig config, bool isMobile) {
+    final siteName = config.siteName;
+    final logoUrl = config.logoUrl;
+    final description = config.description ??
+        'Your trusted partner for premium quality products. We deliver excellence with every purchase and amazing deals.';
+    final footerText = config.footerText;
+    final socialMedia = config.socialMedia;
+
     return Container(
       padding: EdgeInsets.all(isMobile ? 20 : 40),
       color: const Color(0xFF1A365D),
       child: Column(
         children: [
-          Text(
-            config.footerText,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFooterBrand(siteName, logoUrl, description),
+                const SizedBox(height: 32),
+                _buildFooterLinks(),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                    flex: 2,
+                    child: _buildFooterBrand(siteName, logoUrl, description)),
+                Expanded(flex: 3, child: _buildFooterLinks()),
+              ],
             ),
-            textAlign: TextAlign.center,
+          const SizedBox(height: 32),
+          Divider(color: Colors.white.withOpacity(0.2)),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  footerText,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (!isMobile && socialMedia != null)
+                Row(
+                  children: [
+                    if (socialMedia.facebook.isNotEmpty)
+                      _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                    if (socialMedia.instagram.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.camera_alt, socialMedia.instagram),
+                    if (socialMedia.twitter.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.alternate_email, socialMedia.twitter),
+                    if (socialMedia.whatsapp.isNotEmpty)
+                      _buildSocialButton(Icons.message,
+                          'https://wa.me/${socialMedia.whatsapp}'),
+                    if (socialMedia.email.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.email, 'mailto:${socialMedia.email}'),
+                  ]
+                      .where((widget) => widget != null)
+                      .map((widget) => Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: widget!,
+                          ))
+                      .toList(),
+                ),
+            ],
           ),
+          if (isMobile && socialMedia != null) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              children: [
+                if (socialMedia.facebook.isNotEmpty)
+                  _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                if (socialMedia.instagram.isNotEmpty)
+                  _buildSocialButton(Icons.camera_alt, socialMedia.instagram),
+                if (socialMedia.twitter.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.alternate_email, socialMedia.twitter),
+                if (socialMedia.whatsapp.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.message, 'https://wa.me/${socialMedia.whatsapp}'),
+                if (socialMedia.email.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.email, 'mailto:${socialMedia.email}'),
+              ].where((widget) => widget != null).cast<Widget>().toList(),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Widget _buildFooterBrand(
+      String siteName, String? logoUrl, String description) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (logoUrl?.isNotEmpty == true)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    logoUrl!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            const SizedBox(width: 12),
+            Text(
+              siteName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          description,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 16,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterLinks() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 400;
+
+        if (isMobile) {
+          return Column(
+            children: [
+              _buildFooterColumn('Quick Links', [
+                'About Us',
+                'Our Story',
+                'Sale Products',
+                'Careers',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Customer Care', [
+                'Help Center',
+                'Shipping Info',
+                'Returns',
+                'Track Order',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Legal', [
+                'Privacy Policy',
+                'Terms of Service',
+                'Cookie Policy',
+                'Accessibility',
+              ]),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFooterColumn('Quick Links', [
+              'About Us',
+              'Our Story',
+              'Sale Products',
+              'Careers',
+            ]),
+            _buildFooterColumn('Customer Care', [
+              'Help Center',
+              'Shipping Info',
+              'Returns',
+              'Track Order',
+            ]),
+            _buildFooterColumn('Legal', [
+              'Privacy Policy',
+              'Terms of Service',
+              'Cookie Policy',
+              'Accessibility',
+            ]),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFooterColumn(String title, List<String> links) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...links.map((link) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: GestureDetector(
+                onTap: () {
+                  switch (link.toLowerCase()) {
+                    case 'about us':
+                      context.go('/about');
+                      break;
+                    case 'sale products':
+                      context.go('/products?filter=sale');
+                      break;
+                    case 'help center':
+                      context.go('/help');
+                      break;
+                    case 'privacy policy':
+                      context.go('/privacy');
+                      break;
+                    case 'terms of service':
+                      context.go('/terms');
+                      break;
+                    default:
+                      break;
+                  }
+                },
+                child: Text(
+                  link,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            )),
+      ],
+    );
+  }
+
+  Widget? _buildSocialButton(IconData icon, String url) {
+    if (url.isEmpty) return null;
+
+    return GestureDetector(
+      onTap: () => _launchUrl(url),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   void _launchUrl(String url) async {
@@ -455,622 +767,6 @@ class _AboutUsScreenState extends State<AboutUsScreen>
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
-  }
-}
-
-// screens/privacy_policy_screen.dart
-class PrivacyPolicyScreen extends StatefulWidget {
-  const PrivacyPolicyScreen({Key? key}) : super(key: key);
-
-  @override
-  State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
-}
-
-class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
-    );
-    _fadeController.forward();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<WebsiteContentProvider>(context, listen: false)
-          .loadWebsiteConfig();
-    });
-  }
-
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFBFC),
-      appBar: const CustomAppBar(currentRoute: '/privacy'),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Consumer<WebsiteContentProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFF667EEA)),
-                    ),
-                    SizedBox(height: 16),
-                    Text('Loading...'),
-                  ],
-                ),
-              );
-            }
-
-            final privacyPolicy = provider.websiteConfig?.privacyPolicy;
-            if (privacyPolicy == null || !privacyPolicy.isEnabled) {
-              return _buildPageNotAvailable();
-            }
-
-            return _buildPageContent(privacyPolicy, provider.websiteConfig!);
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPageNotAvailable() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.privacy_tip_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Privacy Policy is currently unavailable',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPageContent(PageContent privacyPolicy, WebsiteConfig config) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isMobile = constraints.maxWidth < 768;
-
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHeroSection(privacyPolicy, isMobile),
-              _buildContentSection(privacyPolicy, isMobile),
-              _buildKeyPointsSection(privacyPolicy, isMobile),
-              _buildFooterSection(config, isMobile),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHeroSection(PageContent privacyPolicy, bool isMobile) {
-    return Container(
-      height: isMobile ? 250 : 300,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: GeometricPatternPainter(),
-            ),
-          ),
-          Center(
-            child: Padding(
-              padding: EdgeInsets.all(isMobile ? 20 : 40),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.privacy_tip_outlined,
-                    size: isMobile ? 48 : 64,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    privacyPolicy.title,
-                    style: TextStyle(
-                      fontSize: isMobile ? 28 : 36,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    privacyPolicy.subtitle,
-                    style: TextStyle(
-                      fontSize: isMobile ? 14 : 16,
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContentSection(PageContent privacyPolicy, bool isMobile) {
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 40),
-      color: Colors.white,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Last Updated: ${_formatDate(privacyPolicy.lastUpdated)}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                privacyPolicy.content,
-                style: TextStyle(
-                  fontSize: isMobile ? 16 : 18,
-                  height: 1.8,
-                  color: const Color(0xFF2D3748),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKeyPointsSection(PageContent privacyPolicy, bool isMobile) {
-    if (privacyPolicy.keyPoints.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 40),
-      color: const Color(0xFFF8F9FA),
-      child: Column(
-        children: [
-          Text(
-            'Key Privacy Points',
-            style: TextStyle(
-              fontSize: isMobile ? 20 : 24,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF1A365D),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ...privacyPolicy.keyPoints.asMap().entries.map((entry) {
-            final index = entry.key;
-            final point = entry.value;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: const Color(0xFF667EEA).withOpacity(0.2)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      point,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF2D3748),
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooterSection(WebsiteConfig config, bool isMobile) {
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 40),
-      color: const Color(0xFF1A365D),
-      child: Column(
-        children: [
-          Text(
-            config.footerText,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-}
-
-// screens/terms_conditions_screen.dart
-class TermsConditionsScreen extends StatefulWidget {
-  const TermsConditionsScreen({Key? key}) : super(key: key);
-
-  @override
-  State<TermsConditionsScreen> createState() => _TermsConditionsScreenState();
-}
-
-class _TermsConditionsScreenState extends State<TermsConditionsScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
-    );
-    _fadeController.forward();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<WebsiteContentProvider>(context, listen: false)
-          .loadWebsiteConfig();
-    });
-  }
-
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFBFC),
-      appBar: const CustomAppBar(currentRoute: '/terms'),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Consumer<WebsiteContentProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFF4ECDC4)),
-                    ),
-                    SizedBox(height: 16),
-                    Text('Loading...'),
-                  ],
-                ),
-              );
-            }
-
-            final termsConditions = provider.websiteConfig?.termsConditions;
-            if (termsConditions == null || !termsConditions.isEnabled) {
-              return _buildPageNotAvailable();
-            }
-
-            return _buildPageContent(termsConditions, provider.websiteConfig!);
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPageNotAvailable() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.gavel_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Terms & Conditions are currently unavailable',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPageContent(PageContent termsConditions, WebsiteConfig config) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isMobile = constraints.maxWidth < 768;
-
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHeroSection(termsConditions, isMobile),
-              _buildContentSection(termsConditions, isMobile),
-              _buildKeyPointsSection(termsConditions, isMobile),
-              _buildFooterSection(config, isMobile),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHeroSection(PageContent termsConditions, bool isMobile) {
-    return Container(
-      height: isMobile ? 250 : 300,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: GeometricPatternPainter(),
-            ),
-          ),
-          Center(
-            child: Padding(
-              padding: EdgeInsets.all(isMobile ? 20 : 40),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.gavel_outlined,
-                    size: isMobile ? 48 : 64,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    termsConditions.title,
-                    style: TextStyle(
-                      fontSize: isMobile ? 28 : 36,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    termsConditions.subtitle,
-                    style: TextStyle(
-                      fontSize: isMobile ? 14 : 16,
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContentSection(PageContent termsConditions, bool isMobile) {
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 40),
-      color: Colors.white,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Last Updated: ${_formatDate(termsConditions.lastUpdated)}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                termsConditions.content,
-                style: TextStyle(
-                  fontSize: isMobile ? 16 : 18,
-                  height: 1.8,
-                  color: const Color(0xFF2D3748),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKeyPointsSection(PageContent termsConditions, bool isMobile) {
-    if (termsConditions.keyPoints.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 40),
-      color: const Color(0xFFF8F9FA),
-      child: Column(
-        children: [
-          Text(
-            'Key Terms Summary',
-            style: TextStyle(
-              fontSize: isMobile ? 20 : 24,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF1A365D),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ...termsConditions.keyPoints.asMap().entries.map((entry) {
-            final index = entry.key;
-            final point = entry.value;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border:
-                    Border.all(color: const Color(0xFF4ECDC4).withOpacity(0.2)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      point,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF2D3748),
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooterSection(WebsiteConfig config, bool isMobile) {
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 40),
-      color: const Color(0xFF1A365D),
-      child: Column(
-        children: [
-          Text(
-            config.footerText,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }
 
@@ -1359,26 +1055,340 @@ class _RefundPolicyScreenState extends State<RefundPolicyScreen>
   }
 
   Widget _buildFooterSection(WebsiteConfig config, bool isMobile) {
+    final siteName = config.siteName;
+    final logoUrl = config.logoUrl;
+    final description = config.description ??
+        'Your trusted partner for premium quality products. We deliver excellence with every purchase and amazing deals.';
+    final footerText = config.footerText;
+    final socialMedia = config.socialMedia;
+
     return Container(
       padding: EdgeInsets.all(isMobile ? 20 : 40),
       color: const Color(0xFF1A365D),
       child: Column(
         children: [
-          Text(
-            config.footerText,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFooterBrand(siteName, logoUrl, description),
+                const SizedBox(height: 32),
+                _buildFooterLinks(),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                    flex: 2,
+                    child: _buildFooterBrand(siteName, logoUrl, description)),
+                Expanded(flex: 3, child: _buildFooterLinks()),
+              ],
             ),
-            textAlign: TextAlign.center,
+          const SizedBox(height: 32),
+          Divider(color: Colors.white.withOpacity(0.2)),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  footerText,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (!isMobile && socialMedia != null)
+                Row(
+                  children: [
+                    if (socialMedia.facebook.isNotEmpty)
+                      _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                    if (socialMedia.instagram.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.camera_alt, socialMedia.instagram),
+                    if (socialMedia.twitter.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.alternate_email, socialMedia.twitter),
+                    if (socialMedia.whatsapp.isNotEmpty)
+                      _buildSocialButton(Icons.message,
+                          'https://wa.me/${socialMedia.whatsapp}'),
+                    if (socialMedia.email.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.email, 'mailto:${socialMedia.email}'),
+                  ]
+                      .where((widget) => widget != null)
+                      .map((widget) => Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: widget!,
+                          ))
+                      .toList(),
+                ),
+            ],
           ),
+          if (isMobile && socialMedia != null) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              children: [
+                if (socialMedia.facebook.isNotEmpty)
+                  _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                if (socialMedia.instagram.isNotEmpty)
+                  _buildSocialButton(Icons.camera_alt, socialMedia.instagram),
+                if (socialMedia.twitter.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.alternate_email, socialMedia.twitter),
+                if (socialMedia.whatsapp.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.message, 'https://wa.me/${socialMedia.whatsapp}'),
+                if (socialMedia.email.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.email, 'mailto:${socialMedia.email}'),
+              ].where((widget) => widget != null).cast<Widget>().toList(),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildFooterBrand(
+      String siteName, String? logoUrl, String description) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (logoUrl?.isNotEmpty == true)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    logoUrl!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            const SizedBox(width: 12),
+            Text(
+              siteName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          description,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 16,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterLinks() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 400;
+
+        if (isMobile) {
+          return Column(
+            children: [
+              _buildFooterColumn('Quick Links', [
+                'About Us',
+                'Our Story',
+                'Sale Products',
+                'Careers',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Customer Care', [
+                'Help Center',
+                'Shipping Info',
+                'Returns',
+                'Track Order',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Legal', [
+                'Privacy Policy',
+                'Terms of Service',
+                'Cookie Policy',
+                'Accessibility',
+              ]),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFooterColumn('Quick Links', [
+              'About Us',
+              'Our Story',
+              'Sale Products',
+              'Careers',
+            ]),
+            _buildFooterColumn('Customer Care', [
+              'Help Center',
+              'Shipping Info',
+              'Returns',
+              'Track Order',
+            ]),
+            _buildFooterColumn('Legal', [
+              'Privacy Policy',
+              'Terms of Service',
+              'Cookie Policy',
+              'Accessibility',
+            ]),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFooterColumn(String title, List<String> links) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...links.map((link) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: GestureDetector(
+                onTap: () {
+                  switch (link.toLowerCase()) {
+                    case 'about us':
+                      context.go('/about');
+                      break;
+                    case 'sale products':
+                      context.go('/products?filter=sale');
+                      break;
+                    case 'help center':
+                      context.go('/help');
+                      break;
+                    case 'privacy policy':
+                      context.go('/privacy');
+                      break;
+                    case 'terms of service':
+                      context.go('/terms');
+                      break;
+                    default:
+                      break;
+                  }
+                },
+                child: Text(
+                  link,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            )),
+      ],
+    );
+  }
+
+  Widget? _buildSocialButton(IconData icon, String url) {
+    if (url.isEmpty) return null;
+
+    return GestureDetector(
+      onTap: () => _launchUrl(url),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 20,
+        ),
       ),
     );
   }
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
   }
 }
 
@@ -1420,4 +1430,1248 @@ class GeometricPatternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+Widget? _buildSocialButton(IconData icon, String url) {
+  if (url.isEmpty) return null;
+
+  return GestureDetector(
+    onTap: () => _launchUrl(url),
+    child: Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(
+        icon,
+        color: Colors.white,
+        size: 20,
+      ),
+    ),
+  );
+}
+
+void _launchUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  }
+}
+
+// screens/privacy_policy_screen.dart
+class PrivacyPolicyScreen extends StatefulWidget {
+  const PrivacyPolicyScreen({Key? key}) : super(key: key);
+
+  @override
+  State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+}
+
+class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+    _fadeController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<WebsiteContentProvider>(context, listen: false)
+          .loadWebsiteConfig();
+    });
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAFBFC),
+      appBar: const CustomAppBar(currentRoute: '/privacy'),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Consumer<WebsiteContentProvider>(
+          builder: (context, provider, child) {
+            if (provider.isLoading) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFF667EEA)),
+                    ),
+                    SizedBox(height: 16),
+                    Text('Loading...'),
+                  ],
+                ),
+              );
+            }
+
+            final privacyPolicy = provider.websiteConfig?.privacyPolicy;
+            if (privacyPolicy == null || !privacyPolicy.isEnabled) {
+              return _buildPageNotAvailable();
+            }
+
+            return _buildPageContent(privacyPolicy, provider.websiteConfig!);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageNotAvailable() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.privacy_tip_outlined,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Privacy Policy is currently unavailable',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPageContent(PageContent privacyPolicy, WebsiteConfig config) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 768;
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeroSection(privacyPolicy, isMobile),
+              _buildContentSection(privacyPolicy, isMobile),
+              _buildKeyPointsSection(privacyPolicy, isMobile),
+              _buildFooterSection(config, isMobile),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeroSection(PageContent privacyPolicy, bool isMobile) {
+    return Container(
+      height: isMobile ? 250 : 300,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: GeometricPatternPainter(),
+            ),
+          ),
+          Center(
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 20 : 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.privacy_tip_outlined,
+                    size: isMobile ? 48 : 64,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    privacyPolicy.title,
+                    style: TextStyle(
+                      fontSize: isMobile ? 28 : 36,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    privacyPolicy.subtitle,
+                    style: TextStyle(
+                      fontSize: isMobile ? 14 : 16,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentSection(PageContent privacyPolicy, bool isMobile) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 20 : 40),
+      color: Colors.white,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Last Updated: ${_formatDate(privacyPolicy.lastUpdated)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                privacyPolicy.content,
+                style: TextStyle(
+                  fontSize: isMobile ? 16 : 18,
+                  height: 1.8,
+                  color: const Color(0xFF2D3748),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKeyPointsSection(PageContent privacyPolicy, bool isMobile) {
+    if (privacyPolicy.keyPoints.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 20 : 40),
+      color: const Color(0xFFF8F9FA),
+      child: Column(
+        children: [
+          Text(
+            'Key Privacy Points',
+            style: TextStyle(
+              fontSize: isMobile ? 20 : 24,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF1A365D),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ...privacyPolicy.keyPoints.asMap().entries.map((entry) {
+            final index = entry.key;
+            final point = entry.value;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border:
+                    Border.all(color: const Color(0xFF667EEA).withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      point,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF2D3748),
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterSection(WebsiteConfig config, bool isMobile) {
+    final siteName = config.siteName;
+    final logoUrl = config.logoUrl;
+    final description = config.description ??
+        'Your trusted partner for premium quality products. We deliver excellence with every purchase and amazing deals.';
+    final footerText = config.footerText;
+    final socialMedia = config.socialMedia;
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 20 : 40),
+      color: const Color(0xFF1A365D),
+      child: Column(
+        children: [
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFooterBrand(siteName, logoUrl, description),
+                const SizedBox(height: 32),
+                _buildFooterLinks(),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                    flex: 2,
+                    child: _buildFooterBrand(siteName, logoUrl, description)),
+                Expanded(flex: 3, child: _buildFooterLinks()),
+              ],
+            ),
+          const SizedBox(height: 32),
+          Divider(color: Colors.white.withOpacity(0.2)),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  footerText,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (!isMobile && socialMedia != null)
+                Row(
+                  children: [
+                    if (socialMedia.facebook.isNotEmpty)
+                      _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                    if (socialMedia.instagram.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.camera_alt, socialMedia.instagram),
+                    if (socialMedia.twitter.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.alternate_email, socialMedia.twitter),
+                    if (socialMedia.whatsapp.isNotEmpty)
+                      _buildSocialButton(Icons.message,
+                          'https://wa.me/${socialMedia.whatsapp}'),
+                    if (socialMedia.email.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.email, 'mailto:${socialMedia.email}'),
+                  ]
+                      .where((widget) => widget != null)
+                      .map((widget) => Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: widget!,
+                          ))
+                      .toList(),
+                ),
+            ],
+          ),
+          if (isMobile && socialMedia != null) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              children: [
+                if (socialMedia.facebook.isNotEmpty)
+                  _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                if (socialMedia.instagram.isNotEmpty)
+                  _buildSocialButton(Icons.camera_alt, socialMedia.instagram),
+                if (socialMedia.twitter.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.alternate_email, socialMedia.twitter),
+                if (socialMedia.whatsapp.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.message, 'https://wa.me/${socialMedia.whatsapp}'),
+                if (socialMedia.email.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.email, 'mailto:${socialMedia.email}'),
+              ].where((widget) => widget != null).cast<Widget>().toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterBrand(
+      String siteName, String? logoUrl, String description) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (logoUrl?.isNotEmpty == true)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    logoUrl!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            const SizedBox(width: 12),
+            Text(
+              siteName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          description,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 16,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterLinks() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 400;
+
+        if (isMobile) {
+          return Column(
+            children: [
+              _buildFooterColumn('Quick Links', [
+                'About Us',
+                'Our Story',
+                'Sale Products',
+                'Careers',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Customer Care', [
+                'Help Center',
+                'Shipping Info',
+                'Returns',
+                'Track Order',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Legal', [
+                'Privacy Policy',
+                'Terms of Service',
+                'Cookie Policy',
+                'Accessibility',
+              ]),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFooterColumn('Quick Links', [
+              'About Us',
+              'Our Story',
+              'Sale Products',
+              'Careers',
+            ]),
+            _buildFooterColumn('Customer Care', [
+              'Help Center',
+              'Shipping Info',
+              'Returns',
+              'Track Order',
+            ]),
+            _buildFooterColumn('Legal', [
+              'Privacy Policy',
+              'Terms of Service',
+              'Cookie Policy',
+              'Accessibility',
+            ]),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFooterColumn(String title, List<String> links) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...links.map((link) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: GestureDetector(
+                onTap: () {
+                  switch (link.toLowerCase()) {
+                    case 'about us':
+                      context.go('/about');
+                      break;
+                    case 'sale products':
+                      context.go('/products?filter=sale');
+                      break;
+                    case 'help center':
+                      context.go('/help');
+                      break;
+                    case 'privacy policy':
+                      context.go('/privacy');
+                      break;
+                    case 'terms of service':
+                      context.go('/terms');
+                      break;
+                    default:
+                      break;
+                  }
+                },
+                child: Text(
+                  link,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            )),
+      ],
+    );
+  }
+
+  Widget? _buildSocialButton(IconData icon, String url) {
+    if (url.isEmpty) return null;
+
+    return GestureDetector(
+      onTap: () => _launchUrl(url),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+}
+
+// screens/terms_conditions_screen.dart
+class TermsConditionsScreen extends StatefulWidget {
+  const TermsConditionsScreen({Key? key}) : super(key: key);
+
+  @override
+  State<TermsConditionsScreen> createState() => _TermsConditionsScreenState();
+}
+
+class _TermsConditionsScreenState extends State<TermsConditionsScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+    _fadeController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<WebsiteContentProvider>(context, listen: false)
+          .loadWebsiteConfig();
+    });
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAFBFC),
+      appBar: const CustomAppBar(currentRoute: '/terms'),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Consumer<WebsiteContentProvider>(
+          builder: (context, provider, child) {
+            if (provider.isLoading) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFF4ECDC4)),
+                    ),
+                    SizedBox(height: 16),
+                    Text('Loading...'),
+                  ],
+                ),
+              );
+            }
+
+            final termsConditions = provider.websiteConfig?.termsConditions;
+            if (termsConditions == null || !termsConditions.isEnabled) {
+              return _buildPageNotAvailable();
+            }
+
+            return _buildPageContent(termsConditions, provider.websiteConfig!);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageNotAvailable() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.gavel_outlined,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Terms & Conditions are currently unavailable',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPageContent(PageContent termsConditions, WebsiteConfig config) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 768;
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeroSection(termsConditions, isMobile),
+              _buildContentSection(termsConditions, isMobile),
+              _buildKeyPointsSection(termsConditions, isMobile),
+              _buildFooterSection(config, isMobile),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeroSection(PageContent termsConditions, bool isMobile) {
+    return Container(
+      height: isMobile ? 250 : 300,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: GeometricPatternPainter(),
+            ),
+          ),
+          Center(
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 20 : 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.gavel_outlined,
+                    size: isMobile ? 48 : 64,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    termsConditions.title,
+                    style: TextStyle(
+                      fontSize: isMobile ? 28 : 36,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    termsConditions.subtitle,
+                    style: TextStyle(
+                      fontSize: isMobile ? 14 : 16,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentSection(PageContent termsConditions, bool isMobile) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 20 : 40),
+      color: Colors.white,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Last Updated: ${_formatDate(termsConditions.lastUpdated)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                termsConditions.content,
+                style: TextStyle(
+                  fontSize: isMobile ? 16 : 18,
+                  height: 1.8,
+                  color: const Color(0xFF2D3748),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildKeyPointsSection(PageContent termsConditions, bool isMobile) {
+    if (termsConditions.keyPoints.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 20 : 40),
+      color: const Color(0xFFF8F9FA),
+      child: Column(
+        children: [
+          Text(
+            'Key Terms Summary',
+            style: TextStyle(
+              fontSize: isMobile ? 20 : 24,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF1A365D),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ...termsConditions.keyPoints.asMap().entries.map((entry) {
+            final index = entry.key;
+            final point = entry.value;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border:
+                    Border.all(color: const Color(0xFF4ECDC4).withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      point,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF2D3748),
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterSection(WebsiteConfig config, bool isMobile) {
+    final siteName = config.siteName;
+    final logoUrl = config.logoUrl;
+    final description = config.description ??
+        'Your trusted partner for premium quality products. We deliver excellence with every purchase and amazing deals.';
+    final footerText = config.footerText;
+    final socialMedia = config.socialMedia;
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 20 : 40),
+      color: const Color(0xFF1A365D),
+      child: Column(
+        children: [
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFooterBrand(siteName, logoUrl, description),
+                const SizedBox(height: 32),
+                _buildFooterLinks(),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                    flex: 2,
+                    child: _buildFooterBrand(siteName, logoUrl, description)),
+                Expanded(flex: 3, child: _buildFooterLinks()),
+              ],
+            ),
+          const SizedBox(height: 32),
+          Divider(color: Colors.white.withOpacity(0.2)),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  footerText,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (!isMobile && socialMedia != null)
+                Row(
+                  children: [
+                    if (socialMedia.facebook.isNotEmpty)
+                      _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                    if (socialMedia.instagram.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.camera_alt, socialMedia.instagram),
+                    if (socialMedia.twitter.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.alternate_email, socialMedia.twitter),
+                    if (socialMedia.whatsapp.isNotEmpty)
+                      _buildSocialButton(Icons.message,
+                          'https://wa.me/${socialMedia.whatsapp}'),
+                    if (socialMedia.email.isNotEmpty)
+                      _buildSocialButton(
+                          Icons.email, 'mailto:${socialMedia.email}'),
+                  ]
+                      .where((widget) => widget != null)
+                      .map((widget) => Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: widget!,
+                          ))
+                      .toList(),
+                ),
+            ],
+          ),
+          if (isMobile && socialMedia != null) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              children: [
+                if (socialMedia.facebook.isNotEmpty)
+                  _buildSocialButton(Icons.facebook, socialMedia.facebook),
+                if (socialMedia.instagram.isNotEmpty)
+                  _buildSocialButton(Icons.camera_alt, socialMedia.instagram),
+                if (socialMedia.twitter.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.alternate_email, socialMedia.twitter),
+                if (socialMedia.whatsapp.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.message, 'https://wa.me/${socialMedia.whatsapp}'),
+                if (socialMedia.email.isNotEmpty)
+                  _buildSocialButton(
+                      Icons.email, 'mailto:${socialMedia.email}'),
+              ].where((widget) => widget != null).cast<Widget>().toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterBrand(
+      String siteName, String? logoUrl, String description) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (logoUrl?.isNotEmpty == true)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    logoUrl!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+            const SizedBox(width: 12),
+            Text(
+              siteName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          description,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 16,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterLinks() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 400;
+
+        if (isMobile) {
+          return Column(
+            children: [
+              _buildFooterColumn('Quick Links', [
+                'About Us',
+                'Our Story',
+                'Sale Products',
+                'Careers',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Customer Care', [
+                'Help Center',
+                'Shipping Info',
+                'Returns',
+                'Track Order',
+              ]),
+              const SizedBox(height: 24),
+              _buildFooterColumn('Legal', [
+                'Privacy Policy',
+                'Terms of Service',
+                'Cookie Policy',
+                'Accessibility',
+              ]),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFooterColumn('Quick Links', [
+              'About Us',
+              'Our Story',
+              'Sale Products',
+              'Careers',
+            ]),
+            _buildFooterColumn('Customer Care', [
+              'Help Center',
+              'Shipping Info',
+              'Returns',
+              'Track Order',
+            ]),
+            _buildFooterColumn('Legal', [
+              'Privacy Policy',
+              'Terms of Service',
+              'Cookie Policy',
+              'Accessibility',
+            ]),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFooterColumn(String title, List<String> links) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...links.map((link) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: GestureDetector(
+                onTap: () {
+                  switch (link.toLowerCase()) {
+                    case 'about us':
+                      context.go('/about');
+                      break;
+                    case 'sale products':
+                      context.go('/products?filter=sale');
+                      break;
+                    case 'help center':
+                      context.go('/help');
+                      break;
+                    case 'privacy policy':
+                      context.go('/privacy');
+                      break;
+                    case 'terms of service':
+                      context.go('/terms');
+                      break;
+                    default:
+                      break;
+                  }
+                },
+                child: Text(
+                  link,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            )),
+      ],
+    );
+  }
 }

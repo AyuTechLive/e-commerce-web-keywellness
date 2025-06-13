@@ -61,6 +61,7 @@ class AuthProvider extends ChangeNotifier {
           name: name,
           email: email,
           phone: phone,
+          addresses: [], // Start with empty addresses list
           createdAt: DateTime.now(),
         );
 
@@ -106,17 +107,13 @@ class AuthProvider extends ChangeNotifier {
     await _auth.signOut();
   }
 
-  Future<void> updateProfile(String name, String phone, String address) async {
-    if (_user == null) return;
+  Future<void> updateProfile(String name, String phone) async {
+    if (_user == null || _userModel == null) return;
 
     try {
-      final updatedUser = UserModel(
-        id: _user!.uid,
+      final updatedUser = _userModel!.copyWith(
         name: name,
-        email: _userModel?.email ?? '',
         phone: phone,
-        address: address,
-        createdAt: _userModel?.createdAt ?? DateTime.now(),
       );
 
       await _firestore
@@ -128,6 +125,124 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error updating profile: $e');
+    }
+  }
+
+  // Address Management Methods
+  Future<String?> addAddress(AddressModel address) async {
+    if (_user == null || _userModel == null) return 'User not authenticated';
+
+    try {
+      List<AddressModel> updatedAddresses = List.from(_userModel!.addresses);
+
+      // If this is the first address or marked as default, make it default
+      if (updatedAddresses.isEmpty || address.isDefault) {
+        // Remove default from other addresses
+        updatedAddresses = updatedAddresses
+            .map((addr) => addr.copyWith(isDefault: false))
+            .toList();
+      }
+
+      updatedAddresses.add(address);
+
+      final updatedUser = _userModel!.copyWith(addresses: updatedAddresses);
+
+      await _firestore
+          .collection('users')
+          .doc(_user!.uid)
+          .update(updatedUser.toMap());
+
+      _userModel = updatedUser;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      print('Error adding address: $e');
+      return e.toString();
+    }
+  }
+
+  Future<String?> updateAddress(AddressModel address) async {
+    if (_user == null || _userModel == null) return 'User not authenticated';
+
+    try {
+      List<AddressModel> updatedAddresses = _userModel!.addresses.map((addr) {
+        if (addr.id == address.id) {
+          return address;
+        }
+        // If this address is being set as default, remove default from others
+        if (address.isDefault && addr.isDefault) {
+          return addr.copyWith(isDefault: false);
+        }
+        return addr;
+      }).toList();
+
+      final updatedUser = _userModel!.copyWith(addresses: updatedAddresses);
+
+      await _firestore
+          .collection('users')
+          .doc(_user!.uid)
+          .update(updatedUser.toMap());
+
+      _userModel = updatedUser;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      print('Error updating address: $e');
+      return e.toString();
+    }
+  }
+
+  Future<String?> deleteAddress(String addressId) async {
+    if (_user == null || _userModel == null) return 'User not authenticated';
+
+    try {
+      List<AddressModel> updatedAddresses =
+          _userModel!.addresses.where((addr) => addr.id != addressId).toList();
+
+      // If we deleted the default address and there are other addresses,
+      // make the first one default
+      if (updatedAddresses.isNotEmpty &&
+          !updatedAddresses.any((addr) => addr.isDefault)) {
+        updatedAddresses[0] = updatedAddresses[0].copyWith(isDefault: true);
+      }
+
+      final updatedUser = _userModel!.copyWith(addresses: updatedAddresses);
+
+      await _firestore
+          .collection('users')
+          .doc(_user!.uid)
+          .update(updatedUser.toMap());
+
+      _userModel = updatedUser;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      print('Error deleting address: $e');
+      return e.toString();
+    }
+  }
+
+  Future<String?> setDefaultAddress(String addressId) async {
+    if (_user == null || _userModel == null) return 'User not authenticated';
+
+    try {
+      List<AddressModel> updatedAddresses = _userModel!.addresses.map((addr) {
+        return addr.copyWith(isDefault: addr.id == addressId);
+      }).toList();
+
+      final updatedUser = _userModel!.copyWith(addresses: updatedAddresses);
+
+      await _firestore
+          .collection('users')
+          .doc(_user!.uid)
+          .update(updatedUser.toMap());
+
+      _userModel = updatedUser;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      print('Error setting default address: $e');
+      return e.toString();
     }
   }
 }

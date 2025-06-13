@@ -1,4 +1,4 @@
-// providers/admin_provider.dart
+// providers/admin_provider.dart - Enhanced with quantity and multi-category support
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -13,7 +13,7 @@ class AdminProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  // Categories Management
+  // Categories Management (unchanged)
   Future<String?> addCategory({
     required String name,
     required String imageUrl,
@@ -91,24 +91,46 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  // Products Management
+  // Enhanced Products Management with quantity and multi-category support
   Future<String?> addProduct({
     required String name,
     required String description,
     required double price,
     double? originalPrice,
     required String imageUrl,
-    required String categoryId,
+    required String categoryId, // Primary category
+    List<String>? additionalCategoryIds, // Additional categories
     required bool inStock,
     required List<String> tags,
     required double rating,
     required int reviewCount,
     bool hasDiscount = false,
     double? discountPercentage,
+    // New quantity and unit parameters
+    double? quantity,
+    String? unit,
+    String? quantityDisplay,
   }) async {
     try {
       _isLoading = true;
       notifyListeners();
+
+      // Validate quantity and unit
+      String? validationError = _validateQuantityUnit(quantity, unit);
+      if (validationError != null) {
+        _isLoading = false;
+        notifyListeners();
+        return validationError;
+      }
+
+      // Generate quantity display if not provided
+      String? finalQuantityDisplay = quantityDisplay;
+      if (finalQuantityDisplay == null || finalQuantityDisplay.isEmpty) {
+        if (quantity != null && unit != null && unit.isNotEmpty) {
+          finalQuantityDisplay =
+              ProductUnitHelper.formatQuantityUnit(quantity, unit);
+        }
+      }
 
       final product = Product(
         id: '',
@@ -118,12 +140,16 @@ class AdminProvider extends ChangeNotifier {
         originalPrice: originalPrice,
         imageUrl: imageUrl,
         categoryId: categoryId,
+        categoryIds: additionalCategoryIds ?? [],
         inStock: inStock,
         tags: tags,
         rating: rating,
         reviewCount: reviewCount,
         hasDiscount: hasDiscount,
         discountPercentage: discountPercentage,
+        quantity: quantity,
+        unit: unit,
+        quantityDisplay: finalQuantityDisplay,
       );
 
       // Add to Realtime Database
@@ -146,17 +172,39 @@ class AdminProvider extends ChangeNotifier {
     required double price,
     double? originalPrice,
     required String imageUrl,
-    required String categoryId,
+    required String categoryId, // Primary category
+    List<String>? additionalCategoryIds, // Additional categories
     required bool inStock,
     required List<String> tags,
     required double rating,
     required int reviewCount,
     bool hasDiscount = false,
     double? discountPercentage,
+    // New quantity and unit parameters
+    double? quantity,
+    String? unit,
+    String? quantityDisplay,
   }) async {
     try {
       _isLoading = true;
       notifyListeners();
+
+      // Validate quantity and unit
+      String? validationError = _validateQuantityUnit(quantity, unit);
+      if (validationError != null) {
+        _isLoading = false;
+        notifyListeners();
+        return validationError;
+      }
+
+      // Generate quantity display if not provided
+      String? finalQuantityDisplay = quantityDisplay;
+      if (finalQuantityDisplay == null || finalQuantityDisplay.isEmpty) {
+        if (quantity != null && unit != null && unit.isNotEmpty) {
+          finalQuantityDisplay =
+              ProductUnitHelper.formatQuantityUnit(quantity, unit);
+        }
+      }
 
       final product = Product(
         id: id,
@@ -166,12 +214,16 @@ class AdminProvider extends ChangeNotifier {
         originalPrice: originalPrice,
         imageUrl: imageUrl,
         categoryId: categoryId,
+        categoryIds: additionalCategoryIds ?? [],
         inStock: inStock,
         tags: tags,
         rating: rating,
         reviewCount: reviewCount,
         hasDiscount: hasDiscount,
         discountPercentage: discountPercentage,
+        quantity: quantity,
+        unit: unit,
+        quantityDisplay: finalQuantityDisplay,
       );
 
       await _database.child('products/$id').update(product.toMap());
@@ -203,268 +255,59 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  // Website Content Management
-  Future<String?> initializeDefaultWebsiteConfig() async {
+  // Validate quantity and unit inputs
+  String? _validateQuantityUnit(double? quantity, String? unit) {
+    if (quantity != null && quantity <= 0) {
+      return 'Quantity must be greater than 0';
+    }
+
+    if (quantity != null && (unit == null || unit.isEmpty)) {
+      return 'Unit is required when quantity is specified';
+    }
+
+    if (unit != null && unit.isNotEmpty && quantity == null) {
+      return 'Quantity is required when unit is specified';
+    }
+
+    return null;
+  }
+
+  // Get all categories for multi-select
+  Future<List<Category>> getAllCategories() async {
     try {
-      _isLoading = true;
-      notifyListeners();
-
-      // Check if website config already exists
-      final doc =
-          await _firestore.collection('website_config').doc('main').get();
-
-      if (!doc.exists) {
-        final defaultConfig = WebsiteConfig(
-          id: 'main',
-          siteName: 'WellnessHub',
-          logoUrl: '',
-          tagline: 'Your Wellness Partner',
-          description:
-              'Premium quality products for your health and wellness journey',
-          banners: [
-            BannerItem(
-              id: 'banner1',
-              title: 'Premium Quality Products',
-              subtitle: 'Discover our curated collection of wellness products',
-              buttonText: 'Shop Now',
-              buttonAction: '/products',
-              gradientColors: ['#667EEA', '#764BA2'],
-              badgeText: 'Premium Collection',
-              badgeIcon: '✨',
-              order: 1,
-            ),
-            BannerItem(
-              id: 'banner2',
-              title: 'Mega Sale Now Live!',
-              subtitle: 'Up to 70% off on selected wellness items',
-              buttonText: 'Shop Sale',
-              buttonAction: '/products?filter=sale',
-              gradientColors: ['#FF6B6B', '#FFE66D'],
-              badgeText: 'Limited Time Only',
-              badgeIcon: '🔥',
-              order: 2,
-            ),
-            BannerItem(
-              id: 'banner3',
-              title: 'Fast & Free Delivery',
-              subtitle: 'Free shipping on orders above ₹500',
-              buttonText: 'Learn More',
-              buttonAction: '/about',
-              gradientColors: ['#4ECDC4', '#44A08D'],
-              badgeText: 'Free Shipping',
-              badgeIcon: '🚚',
-              order: 3,
-            ),
-          ],
-          stats: [
-            StatItem(
-              id: 'stat1',
-              number: '50K+',
-              label: 'Happy Customers',
-              iconName: 'people_outline',
-              gradientColors: ['#667EEA', '#764BA2'],
-              order: 1,
-            ),
-            StatItem(
-              id: 'stat2',
-              number: '1000+',
-              label: 'Products',
-              iconName: 'inventory_2_outlined',
-              gradientColors: ['#667EEA', '#764BA2'],
-              order: 2,
-            ),
-            StatItem(
-              id: 'stat3',
-              number: '99%',
-              label: 'Satisfaction',
-              iconName: 'star_outline',
-              gradientColors: ['#667EEA', '#764BA2'],
-              order: 3,
-            ),
-            StatItem(
-              id: 'stat4',
-              number: '24/7',
-              label: 'Support',
-              iconName: 'support_agent_outlined',
-              gradientColors: ['#667EEA', '#764BA2'],
-              order: 4,
-            ),
-          ],
-          socialMedia: SocialMediaLinks(
-            facebook: 'https://facebook.com/wellnesshub',
-            instagram: 'https://instagram.com/wellnesshub',
-            twitter: 'https://twitter.com/wellnesshub',
-            email: 'contact@wellnesshub.com',
-            phone: '+91-9876543210',
-            whatsapp: '+91-9876543210',
-          ),
-          footerText: '© 2024 WellnessHub. All rights reserved.',
-          aboutUs: PageContent(
-            title: 'About WellnessHub',
-            subtitle: 'Your trusted partner in health and wellness',
-            content:
-                '''Welcome to WellnessHub, your premier destination for quality health and wellness products. Founded with the mission to make healthy living accessible and affordable for everyone, we have been serving our community with dedication and care.
-
-Our Story
-WellnessHub was born out of a simple belief: everyone deserves access to high-quality health products without compromising on affordability or authenticity. Our founders, passionate about wellness and customer care, started this journey to bridge the gap between quality healthcare products and the people who need them.
-
-Our Mission
-We are committed to providing our customers with authentic, high-quality health and wellness products sourced from trusted manufacturers. Our rigorous quality control processes ensure that every product that reaches you meets our strict standards of excellence.
-
-Why Choose Us?
-At WellnessHub, we understand that your health is your most valuable asset. That's why we go above and beyond to ensure that you receive only the best products and services. Our team of experts carefully curates each product in our inventory, ensuring authenticity and effectiveness.
-
-Our Promise
-We promise to continue serving you with the same dedication and care that has made us a trusted name in the wellness industry. Your health and satisfaction remain our top priorities.''',
-            keyPoints: [
-              'Premium quality products from trusted brands',
-              'Rigorous quality control and authenticity verification',
-              'Expert customer support and guidance',
-              'Fast and secure delivery nationwide',
-              'Competitive pricing and regular offers',
-              '100% genuine products guarantee'
-            ],
-            contactInfo: ContactInfo(
-              email: 'info@wellnesshub.com',
-              phone: '+91-9876543210',
-              address: '123 Wellness Street, Health City, HC 12345',
-              workingHours:
-                  'Monday to Saturday: 9 AM - 8 PM\nSunday: 10 AM - 6 PM',
-            ),
-            lastUpdated: DateTime.now(),
-          ),
-          privacyPolicy: PageContent(
-            title: 'Privacy Policy',
-            subtitle: 'How we protect and handle your personal information',
-            content:
-                '''At WellnessHub, we are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website or use our services.
-
-Information We Collect
-We may collect information about you in a variety of ways. The information we may collect includes:
-
-Personal Data: When you create an account, make a purchase, or contact us, we may collect personally identifiable information, such as your name, shipping address, email address, and telephone number.
-
-Derivative Data: Information our servers automatically collect when you access our website, such as your IP address, browser type, operating system, access times, and the pages you view.
-
-Financial Data: Financial information, such as data related to your payment method (e.g., valid credit card number, card brand, expiration date) that we may collect when you purchase, order, return, exchange, or request information about our services.
-
-Use of Your Information
-Having accurate information about you permits us to provide you with a smooth, efficient, and customized experience. We use your information for account management, transaction processing, customer support, marketing communications, and service improvement.
-
-Security of Your Information
-We use administrative, technical, and physical security measures to help protect your personal information. While we have taken reasonable steps to secure the personal information you provide to us, please be aware that despite our efforts, no security measures are perfect or impenetrable.
-
-Contact Us
-If you have questions or comments about this Privacy Policy, please contact us at privacy@wellnesshub.com or +91-9876543210.''',
-            keyPoints: [
-              'We collect only necessary information for service delivery',
-              'Your data is secured with industry-standard encryption',
-              'We never sell your personal information to third parties',
-              'You have full control over your data and privacy settings',
-              'Regular security audits ensure data protection',
-              'Transparent communication about data usage'
-            ],
-            lastUpdated: DateTime.now(),
-          ),
-          termsConditions: PageContent(
-            title: 'Terms and Conditions',
-            subtitle: 'Terms of service for using WellnessHub platform',
-            content:
-                '''Welcome to WellnessHub. These terms and conditions outline the rules and regulations for the use of WellnessHub's Website.
-
-By accessing this website, we assume you accept these terms and conditions. Do not continue to use WellnessHub if you do not agree to take all of the terms and conditions stated on this page.
-
-Use License
-Permission is granted to temporarily download one copy of the materials on WellnessHub's website for personal, non-commercial transitory viewing only.
-
-Account Terms
-To access some features of the service, you must register for an account. When you create an account, you must provide information that is accurate, complete, and current at all times.
-
-Product Information
-We strive to provide accurate product information, including descriptions, images, and pricing. However, we do not warrant that product descriptions or other content is accurate, complete, reliable, current, or error-free.
-
-Pricing and Payment
-All prices are listed in Indian Rupees (INR) and are subject to change without notice. Payment is due upon completion of your order.
-
-Shipping and Delivery
-We aim to process and ship orders within 1-2 business days. Delivery times may vary based on location and product availability.
-
-Returns and Refunds
-We accept returns within 7 days of delivery for most products in original condition. Please refer to our Refund Policy for detailed information.
-
-Contact Information
-For questions about these Terms and Conditions, please contact us at legal@wellnesshub.com or +91-9876543210.''',
-            keyPoints: [
-              'Fair and transparent terms for all users',
-              'Clear guidelines for account usage and responsibilities',
-              'Comprehensive product and pricing policies',
-              'Detailed shipping and delivery information',
-              'Straightforward return and refund procedures',
-              'Legal protections for both parties'
-            ],
-            lastUpdated: DateTime.now(),
-          ),
-          refundPolicy: PageContent(
-            title: 'Refund Policy',
-            subtitle:
-                'Our commitment to customer satisfaction and fair returns',
-            content:
-                '''At WellnessHub, your satisfaction is our priority. We strive to provide high-quality products and excellent service. This Refund Policy outlines the terms and conditions for returns, exchanges, and refunds.
-
-Return Eligibility
-We accept returns for most products within 7 days of delivery, provided they meet the following conditions:
-- Products must be in their original condition and packaging
-- Items should be unused and in resalable condition
-- Original receipt or proof of purchase is required
-- Products must not be expired or near expiry
-
-Return Process
-To initiate a return, please follow these steps:
-1. Contact our customer service team within 7 days of delivery
-2. Provide your order number and reason for return
-3. Receive return authorization and shipping instructions
-4. Package items securely in original packaging
-5. Ship items using provided return label
-
-Refund Timeline
-Once we receive your returned items, our team will inspect them within 2-3 business days. Approved refunds will be processed as follows:
-- Credit/Debit Card: 5-7 business days
-- UPI/Digital Wallets: 1-3 business days
-- Bank Transfer: 3-5 business days
-- Store Credit: Immediate
-
-Customer Service
-Our customer service team is available to assist with returns and refunds at returns@wellnesshub.com or +91-9876543210, Monday to Saturday, 9 AM - 8 PM.''',
-            keyPoints: [
-              '7-day return window for most products',
-              'Free returns for defective or damaged items',
-              'Multiple refund methods available',
-              'Quick processing within 2-3 business days',
-              'Fair exchange policy for unavailable items',
-              '24/7 customer support for return assistance'
-            ],
-            lastUpdated: DateTime.now(),
-          ),
-          updatedAt: DateTime.now(),
-        );
-
-        await _firestore
-            .collection('website_config')
-            .doc('main')
-            .set(defaultConfig.toMap());
-      }
-
-      _isLoading = false;
-      notifyListeners();
-      return null;
+      final snapshot = await _firestore.collection('categories').get();
+      return snapshot.docs
+          .map((doc) => Category.fromMap(doc.data(), doc.id))
+          .toList();
     } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return e.toString();
+      print('Error fetching categories: $e');
+      return [];
     }
   }
 
-  // Enhanced sample data with comprehensive website content
+  // Get products by multiple categories
+  Future<List<Product>> getProductsByCategories(
+      List<String> categoryIds) async {
+    try {
+      final snapshot = await _database.child('products').once();
+      if (snapshot.snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+
+        return data.entries
+            .map((entry) => Product.fromMap(
+                Map<String, dynamic>.from(entry.value), entry.key))
+            .where((product) => categoryIds
+                .any((categoryId) => product.belongsToCategory(categoryId)))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print('Error fetching products by categories: $e');
+      return [];
+    }
+  }
+
+  // Enhanced sample data with quantity information
   Future<String?> addSampleData() async {
     try {
       _isLoading = true;
@@ -525,7 +368,7 @@ Our customer service team is available to assist with returns and refunds at ret
         categoryIds[categoryData['name']!] = docRef.id;
       }
 
-      // Enhanced sample products with more variety and discounts
+      // Enhanced sample products with quantity and multi-category support
       final sampleProducts = [
         // Vitamins & Supplements
         {
@@ -537,6 +380,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500',
           'categoryId': categoryIds['Vitamins & Supplements']!,
+          'categoryIds': [
+            categoryIds['Personal Care']!
+          ], // Also in Personal Care
           'inStock': true,
           'tags': [
             'vitamin d3',
@@ -549,6 +395,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 120,
           'hasDiscount': true,
           'discountPercentage': 20.0,
+          'quantity': 60.0,
+          'unit': 'capsules',
+          'quantityDisplay': '60 capsules',
         },
         {
           'name': 'Omega 3 Fish Oil 1000mg',
@@ -559,6 +408,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1559181567-c3190ca9959b?w=500',
           'categoryId': categoryIds['Vitamins & Supplements']!,
+          'categoryIds': [], // Single category
           'inStock': true,
           'tags': [
             'omega 3',
@@ -571,6 +421,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 85,
           'hasDiscount': true,
           'discountPercentage': 20.0,
+          'quantity': 90.0,
+          'unit': 'capsules',
+          'quantityDisplay': '90 capsules',
         },
         {
           'name': 'Multivitamin Complex',
@@ -580,6 +433,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1550572017-a4357aeb2ff4?w=500',
           'categoryId': categoryIds['Vitamins & Supplements']!,
+          'categoryIds': [],
           'inStock': true,
           'tags': [
             'multivitamin',
@@ -591,6 +445,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'rating': 4.3,
           'reviewCount': 156,
           'hasDiscount': false,
+          'quantity': 30.0,
+          'unit': 'tablets',
+          'quantityDisplay': '30 tablets',
         },
         {
           'name': 'Vitamin C 1000mg',
@@ -601,6 +458,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500',
           'categoryId': categoryIds['Vitamins & Supplements']!,
+          'categoryIds': [],
           'inStock': true,
           'tags': [
             'vitamin c',
@@ -613,6 +471,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 98,
           'hasDiscount': true,
           'discountPercentage': 20.0,
+          'quantity': 120.0,
+          'unit': 'tablets',
+          'quantityDisplay': '120 tablets',
         },
 
         // Herbal Products
@@ -625,6 +486,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?w=500',
           'categoryId': categoryIds['Herbal Products']!,
+          'categoryIds': [categoryIds['Ayurvedic Medicine']!], // Also Ayurvedic
           'inStock': true,
           'tags': [
             'ashwagandha',
@@ -637,6 +499,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 95,
           'hasDiscount': true,
           'discountPercentage': 20.0,
+          'quantity': 60.0,
+          'unit': 'capsules',
+          'quantityDisplay': '60 capsules',
         },
         {
           'name': 'Turmeric Curcumin 500mg',
@@ -647,6 +512,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=500',
           'categoryId': categoryIds['Herbal Products']!,
+          'categoryIds': [categoryIds['Ayurvedic Medicine']!],
           'inStock': true,
           'tags': [
             'turmeric',
@@ -659,29 +525,10 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 78,
           'hasDiscount': true,
           'discountPercentage': 20.0,
+          'quantity': 90.0,
+          'unit': 'capsules',
+          'quantityDisplay': '90 capsules',
         },
-        {
-          'name': 'Ginkgo Biloba Extract',
-          'description':
-              'Standardized Ginkgo Biloba extract for cognitive support and improved blood circulation. Supports memory and mental focus.',
-          'price': 799.0,
-          'imageUrl':
-              'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=500',
-          'categoryId': categoryIds['Herbal Products']!,
-          'inStock': true,
-          'tags': [
-            'ginkgo biloba',
-            'cognitive support',
-            'memory',
-            'circulation'
-          ],
-          'rating': 4.2,
-          'reviewCount': 67,
-          'hasDiscount': false,
-        },
-
-        // Add more products for other categories...
-        // (I'll include a few more key products to keep the response manageable)
 
         // Protein & Fitness
         {
@@ -693,6 +540,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500',
           'categoryId': categoryIds['Protein & Fitness']!,
+          'categoryIds': [],
           'inStock': true,
           'tags': [
             'whey protein',
@@ -705,6 +553,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 210,
           'hasDiscount': true,
           'discountPercentage': 20.0,
+          'quantity': 1.0,
+          'unit': 'kg',
+          'quantityDisplay': '1 kg',
         },
 
         // Ayurvedic Medicine
@@ -717,6 +568,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1605833439443-ee51d1eb2567?w=500',
           'categoryId': categoryIds['Ayurvedic Medicine']!,
+          'categoryIds': [categoryIds['Herbal Products']!], // Also Herbal
           'inStock': true,
           'tags': [
             'chyawanprash',
@@ -729,6 +581,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 203,
           'hasDiscount': true,
           'discountPercentage': 20.0,
+          'quantity': 500.0,
+          'unit': 'gm',
+          'quantityDisplay': '500 gm',
         },
 
         // Organic Health Foods
@@ -741,6 +596,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=500',
           'categoryId': categoryIds['Organic Health Foods']!,
+          'categoryIds': [],
           'inStock': true,
           'tags': [
             'chia seeds',
@@ -754,6 +610,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 76,
           'hasDiscount': true,
           'discountPercentage': 20.0,
+          'quantity': 500.0,
+          'unit': 'gm',
+          'quantityDisplay': '500 gm',
         },
 
         // Personal Care
@@ -766,6 +625,7 @@ Our customer service team is available to assist with returns and refunds at ret
           'imageUrl':
               'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=500',
           'categoryId': categoryIds['Personal Care']!,
+          'categoryIds': [categoryIds['Herbal Products']!], // Also Herbal
           'inStock': true,
           'tags': [
             'neem',
@@ -779,6 +639,9 @@ Our customer service team is available to assist with returns and refunds at ret
           'reviewCount': 89,
           'hasDiscount': true,
           'discountPercentage': 22.0,
+          'quantity': 100.0,
+          'unit': 'ml',
+          'quantityDisplay': '100 ml',
         },
       ];
 
@@ -796,7 +659,269 @@ Our customer service team is available to assist with returns and refunds at ret
     }
   }
 
-  // Order Management
+  // Bulk update products to add quantity information
+  Future<String?> bulkUpdateProductsWithQuantity() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final snapshot = await _database.child('products').once();
+      if (snapshot.snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+
+        for (var entry in data.entries) {
+          final productId = entry.key;
+          final productData = Map<String, dynamic>.from(entry.value);
+
+          // Skip if quantity already exists
+          if (productData['quantity'] != null) continue;
+
+          // Add default quantity based on product type
+          String productName =
+              productData['name']?.toString().toLowerCase() ?? '';
+          Map<String, dynamic> updates = {};
+
+          if (productName.contains('capsule') ||
+              productName.contains('tablet')) {
+            updates['quantity'] = 60.0;
+            updates['unit'] =
+                productName.contains('capsule') ? 'capsules' : 'tablets';
+          } else if (productName.contains('powder') ||
+              productName.contains('protein')) {
+            updates['quantity'] = 1.0;
+            updates['unit'] = 'kg';
+          } else if (productName.contains('oil') ||
+              productName.contains('wash')) {
+            updates['quantity'] = 100.0;
+            updates['unit'] = 'ml';
+          } else if (productName.contains('seeds') ||
+              productName.contains('chyawanprash')) {
+            updates['quantity'] = 500.0;
+            updates['unit'] = 'gm';
+          } else {
+            // Default for other products
+            updates['quantity'] = 1.0;
+            updates['unit'] = 'piece';
+          }
+
+          if (updates['quantity'] != null && updates['unit'] != null) {
+            updates['quantityDisplay'] = ProductUnitHelper.formatQuantityUnit(
+                updates['quantity'], updates['unit']);
+          }
+
+          await _database.child('products/$productId').update(updates);
+        }
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return e.toString();
+    }
+  }
+
+  // Add products to additional categories
+  Future<String?> addProductToCategories(
+      String productId, List<String> newCategoryIds) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final snapshot = await _database.child('products/$productId').once();
+      if (snapshot.snapshot.exists) {
+        final productData =
+            Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+
+        // Get existing category IDs
+        List<String> existingCategoryIds = [];
+        if (productData['categoryIds'] != null) {
+          existingCategoryIds = List<String>.from(productData['categoryIds']);
+        }
+
+        // Add new categories (avoid duplicates)
+        Set<String> allCategoryIds = Set.from(existingCategoryIds);
+        allCategoryIds.addAll(newCategoryIds);
+
+        await _database.child('products/$productId').update({
+          'categoryIds': allCategoryIds.toList(),
+        });
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return e.toString();
+    }
+  }
+
+  // Remove products from categories
+  Future<String?> removeProductFromCategories(
+      String productId, List<String> categoryIdsToRemove) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final snapshot = await _database.child('products/$productId').once();
+      if (snapshot.snapshot.exists) {
+        final productData =
+            Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+
+        // Get existing category IDs
+        List<String> existingCategoryIds = [];
+        if (productData['categoryIds'] != null) {
+          existingCategoryIds = List<String>.from(productData['categoryIds']);
+        }
+
+        // Remove specified categories
+        existingCategoryIds
+            .removeWhere((id) => categoryIdsToRemove.contains(id));
+
+        await _database.child('products/$productId').update({
+          'categoryIds': existingCategoryIds,
+        });
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return e.toString();
+    }
+  }
+
+  // Get unit suggestions for admin UI
+  List<String> getUnitSuggestions() {
+    return ProductUnitHelper.commonUnits;
+  }
+
+  // Get unit suggestions by type
+  List<String> getUnitSuggestionsByType(ProductUnitType type) {
+    return ProductUnitHelper.getUnitSuggestions(type);
+  }
+
+  // Website Content Management (unchanged methods)
+  Future<String?> initializeDefaultWebsiteConfig() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Check if website config already exists
+      final doc =
+          await _firestore.collection('website_config').doc('main').get();
+
+      if (!doc.exists) {
+        final defaultConfig = WebsiteConfig(
+          id: 'main',
+          siteName: 'WellnessHub',
+          logoUrl: '',
+          tagline: 'Your Wellness Partner',
+          description:
+              'Premium quality products for your health and wellness journey',
+          banners: [
+            BannerItem(
+              id: 'banner1',
+              title: 'Premium Quality Products',
+              subtitle: 'Discover our curated collection of wellness products',
+              buttonText: 'Shop Now',
+              buttonAction: '/products',
+              gradientColors: ['#667EEA', '#764BA2'],
+              badgeText: 'Premium Collection',
+              badgeIcon: '✨',
+              order: 1,
+            ),
+            BannerItem(
+              id: 'banner2',
+              title: 'Mega Sale Now Live!',
+              subtitle: 'Up to 70% off on selected wellness items',
+              buttonText: 'Shop Sale',
+              buttonAction: '/products?filter=sale',
+              gradientColors: ['#FF6B6B', '#FFE66D'],
+              badgeText: 'Limited Time Only',
+              badgeIcon: '🔥',
+              order: 2,
+            ),
+          ],
+          stats: [
+            StatItem(
+              id: 'stat1',
+              number: '50K+',
+              label: 'Happy Customers',
+              iconName: 'people_outline',
+              gradientColors: ['#667EEA', '#764BA2'],
+              order: 1,
+            ),
+          ],
+          socialMedia: SocialMediaLinks(
+            facebook: 'https://facebook.com/wellnesshub',
+            instagram: 'https://instagram.com/wellnesshub',
+            twitter: 'https://twitter.com/wellnesshub',
+            email: 'contact@wellnesshub.com',
+            phone: '+91-9876543210',
+            whatsapp: '+91-9876543210',
+          ),
+          footerText: '© 2024 WellnessHub. All rights reserved.',
+          aboutUs: PageContent(
+            title: 'About WellnessHub',
+            subtitle: 'Your trusted partner in health and wellness',
+            content: 'Welcome to WellnessHub...',
+            keyPoints: ['Premium quality products'],
+            contactInfo: ContactInfo(
+              email: 'info@wellnesshub.com',
+              phone: '+91-9876543210',
+              address: '123 Wellness Street',
+              workingHours: 'Monday to Saturday: 9 AM - 8 PM',
+            ),
+            lastUpdated: DateTime.now(),
+          ),
+          privacyPolicy: PageContent(
+            title: 'Privacy Policy',
+            subtitle: 'How we protect your information',
+            content: 'At WellnessHub, we are committed...',
+            keyPoints: ['Data protection'],
+            lastUpdated: DateTime.now(),
+          ),
+          termsConditions: PageContent(
+            title: 'Terms and Conditions',
+            subtitle: 'Terms of service',
+            content: 'Welcome to WellnessHub...',
+            keyPoints: ['Fair terms'],
+            lastUpdated: DateTime.now(),
+          ),
+          refundPolicy: PageContent(
+            title: 'Refund Policy',
+            subtitle: 'Our commitment to customer satisfaction',
+            content: 'At WellnessHub, your satisfaction...',
+            keyPoints: ['7-day return window'],
+            lastUpdated: DateTime.now(),
+          ),
+          updatedAt: DateTime.now(),
+        );
+
+        await _firestore
+            .collection('website_config')
+            .doc('main')
+            .set(defaultConfig.toMap());
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return e.toString();
+    }
+  }
+
+  // Order Management (unchanged)
   Future<List<Map<String, dynamic>>> getAllOrders() async {
     try {
       final snapshot = await _firestore
@@ -827,7 +952,7 @@ Our customer service team is available to assist with returns and refunds at ret
     }
   }
 
-  // Analytics Methods
+  // Analytics Methods (unchanged)
   Future<Map<String, dynamic>> getDashboardAnalytics() async {
     try {
       // Get total products

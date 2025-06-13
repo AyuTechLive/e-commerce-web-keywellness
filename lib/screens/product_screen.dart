@@ -222,22 +222,26 @@ class _AllProductsScreenState extends State<AllProductsScreen>
                       _buildResultsHeader(isMobile),
                       const SizedBox(height: 32),
 
-                      // Products grid
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
-                          crossAxisSpacing: isMobile ? 0 : 24,
-                          mainAxisSpacing: isMobile ? 20 : 24,
-                          childAspectRatio: isMobile ? 1.2 : 0.8,
-                        ),
-                        itemCount: _filteredProducts.length,
-                        itemBuilder: (context, index) {
-                          final product = _filteredProducts[index];
-                          return ProductCard(product: product);
-                        },
-                      ),
+                      // Products grid - Fixed for mobile
+                      isMobile
+                          ? _buildMobileProductsList()
+                          : GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: isTablet ? 2 : 4,
+                                crossAxisSpacing: 24,
+                                mainAxisSpacing: 24,
+                                childAspectRatio:
+                                    0.64, // Adjusted for better proportions
+                              ),
+                              itemCount: _filteredProducts.length,
+                              itemBuilder: (context, index) {
+                                final product = _filteredProducts[index];
+                                return ProductCard(product: product);
+                              },
+                            ),
                     ],
                   ),
                 ),
@@ -248,77 +252,100 @@ class _AllProductsScreenState extends State<AllProductsScreen>
     );
   }
 
+  // Separate mobile layout to prevent overflow
+  Widget _buildMobileProductsList() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2, // 2 items per row
+        crossAxisSpacing: 16, // Horizontal spacing between items
+        mainAxisSpacing: 20, // Vertical spacing between items
+        childAspectRatio:
+            0.57, // Adjust this ratio based on your ProductCard dimensions
+      ),
+      itemCount: _filteredProducts.length,
+      itemBuilder: (context, index) {
+        final product = _filteredProducts[index];
+        return ProductCard(product: product);
+      },
+    );
+  }
+
   Widget _buildResultsHeader(bool isMobile) {
     final discountedCount = _filteredProducts.where((p) => p.isOnSale).length;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Found ${_filteredProducts.length} Products',
-              style: TextStyle(
-                fontSize: isMobile ? 20 : 24,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF1A365D),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Text(
-                  'Discover amazing products just for you',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Found ${_filteredProducts.length} Products',
+                style: TextStyle(
+                  fontSize: isMobile ? 20 : 24,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1A365D),
                 ),
-                if (discountedCount > 0) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(8),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    'Discover amazing products just for you',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
                     ),
-                    child: Text(
-                      '$discountedCount on sale',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                  ),
+                  if (discountedCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$discountedCount on sale',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
                 ],
-              ],
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            gradient: _showDiscountedOnly
-                ? const LinearGradient(
-                    colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
-                  ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            _showDiscountedOnly ? '🔥 SALE ITEMS' : '🔥 TRENDING',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-            ),
+              ),
+            ],
           ),
         ),
+        if (!isMobile)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: _showDiscountedOnly
+                  ? const LinearGradient(
+                      colors: [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
+                    )
+                  : const LinearGradient(
+                      colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                    ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _showDiscountedOnly ? '🔥 SALE ITEMS' : '🔥 TRENDING',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -487,118 +514,244 @@ class _AllProductsScreenState extends State<AllProductsScreen>
               ),
               const SizedBox(height: 20),
               // Filter and Sort Controls
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: _showFilters
-                            ? const LinearGradient(
-                                colors: [Color(0xFF00D4AA), Color(0xFF4FD1C7)],
-                              )
-                            : null,
-                        color: _showFilters ? null : const Color(0xFFF7FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _showFilters
-                              ? Colors.transparent
-                              : Colors.grey.shade200,
-                        ),
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _showFilters = !_showFilters;
-                          });
-                        },
-                        icon: Icon(
-                          _showFilters
-                              ? Icons.filter_list_off
-                              : Icons.filter_list,
-                          size: 20,
-                        ),
-                        label: const Text('Filters'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: _showFilters
-                              ? Colors.white
-                              : const Color(0xFF4A5568),
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF7FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: PopupMenuButton<String>(
-                        initialValue: _sortBy,
-                        onSelected: (value) {
-                          setState(() {
-                            _sortBy = value;
-                          });
-                          _filterProducts();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.sort_rounded, size: 20),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  _getSortLabel(_sortBy),
-                                  style: const TextStyle(
-                                    color: Color(0xFF4A5568),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+              isMobile
+                  ? Column(
+                      children: [
+                        // Filter button
+                        SizedBox(
+                          width: double.infinity,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: _showFilters
+                                  ? const LinearGradient(
+                                      colors: [
+                                        Color(0xFF00D4AA),
+                                        Color(0xFF4FD1C7)
+                                      ],
+                                    )
+                                  : null,
+                              color:
+                                  _showFilters ? null : const Color(0xFFF7FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _showFilters
+                                    ? Colors.transparent
+                                    : Colors.grey.shade200,
+                              ),
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _showFilters = !_showFilters;
+                                });
+                              },
+                              icon: Icon(
+                                _showFilters
+                                    ? Icons.filter_list_off
+                                    : Icons.filter_list,
+                                size: 20,
+                              ),
+                              label: const Text('Filters'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: _showFilters
+                                    ? Colors.white
+                                    : const Color(0xFF4A5568),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.keyboard_arrow_down, size: 20),
-                            ],
+                            ),
                           ),
                         ),
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: 'name',
-                            child: Text('Name (A-Z)'),
+                        const SizedBox(height: 12),
+                        // Sort dropdown
+                        SizedBox(
+                          width: double.infinity,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: PopupMenuButton<String>(
+                              initialValue: _sortBy,
+                              onSelected: (value) {
+                                setState(() {
+                                  _sortBy = value;
+                                });
+                                _filterProducts();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.sort_rounded, size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _getSortLabel(_sortBy),
+                                        style: const TextStyle(
+                                          color: Color(0xFF4A5568),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    const Icon(Icons.keyboard_arrow_down,
+                                        size: 20),
+                                  ],
+                                ),
+                              ),
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'name',
+                                  child: Text('Name (A-Z)'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'price_low',
+                                  child: Text('Price (Low to High)'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'price_high',
+                                  child: Text('Price (High to Low)'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'rating',
+                                  child: Text('Rating (High to Low)'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'discount',
+                                  child: Text('Discount (High to Low)'),
+                                ),
+                              ],
+                            ),
                           ),
-                          const PopupMenuItem(
-                            value: 'price_low',
-                            child: Text('Price (Low to High)'),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: _showFilters
+                                  ? const LinearGradient(
+                                      colors: [
+                                        Color(0xFF00D4AA),
+                                        Color(0xFF4FD1C7)
+                                      ],
+                                    )
+                                  : null,
+                              color:
+                                  _showFilters ? null : const Color(0xFFF7FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _showFilters
+                                    ? Colors.transparent
+                                    : Colors.grey.shade200,
+                              ),
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _showFilters = !_showFilters;
+                                });
+                              },
+                              icon: Icon(
+                                _showFilters
+                                    ? Icons.filter_list_off
+                                    : Icons.filter_list,
+                                size: 20,
+                              ),
+                              label: const Text('Filters'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: _showFilters
+                                    ? Colors.white
+                                    : const Color(0xFF4A5568),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
                           ),
-                          const PopupMenuItem(
-                            value: 'price_high',
-                            child: Text('Price (High to Low)'),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: PopupMenuButton<String>(
+                              initialValue: _sortBy,
+                              onSelected: (value) {
+                                setState(() {
+                                  _sortBy = value;
+                                });
+                                _filterProducts();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.sort_rounded, size: 20),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        _getSortLabel(_sortBy),
+                                        style: const TextStyle(
+                                          color: Color(0xFF4A5568),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.keyboard_arrow_down,
+                                        size: 20),
+                                  ],
+                                ),
+                              ),
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'name',
+                                  child: Text('Name (A-Z)'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'price_low',
+                                  child: Text('Price (Low to High)'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'price_high',
+                                  child: Text('Price (High to Low)'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'rating',
+                                  child: Text('Rating (High to Low)'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'discount',
+                                  child: Text('Discount (High to Low)'),
+                                ),
+                              ],
+                            ),
                           ),
-                          const PopupMenuItem(
-                            value: 'rating',
-                            child: Text('Rating (High to Low)'),
-                          ),
-                          const PopupMenuItem(
-                            value: 'discount',
-                            child: Text('Discount (High to Low)'),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ],
           ),
         );
@@ -896,44 +1049,4 @@ class _AllProductsScreenState extends State<AllProductsScreen>
       ),
     );
   }
-}
-
-// Custom Painter for Background Pattern (matching home screen)
-class GeometricPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.05)
-      ..style = PaintingStyle.fill;
-
-    // Draw circles
-    for (int i = 0; i < 15; i++) {
-      final x = (i * size.width / 8) % size.width;
-      final y = (i * size.height / 10) % size.height;
-
-      canvas.drawCircle(
-        Offset(x, y),
-        15 + (i % 3) * 10,
-        paint,
-      );
-    }
-
-    // Draw triangles
-    final path = Path();
-    for (int i = 0; i < 8; i++) {
-      final x = (i * size.width / 5) % size.width;
-      final y = (i * size.height / 7) % size.height;
-
-      path.reset();
-      path.moveTo(x, y);
-      path.lineTo(x + 20, y + 30);
-      path.lineTo(x - 20, y + 30);
-      path.close();
-
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

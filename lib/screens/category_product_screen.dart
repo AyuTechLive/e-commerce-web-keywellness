@@ -23,10 +23,19 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen>
   bool isLoading = true;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  late ScrollController _scrollController;
+  late AnimationController _headerController;
+  late Animation<double> _headerAnimation;
+
+  bool _isHeaderVisible = true;
+  double _lastScrollOffset = 0;
+  final double _headerHeight = 200; // Adjust based on your header height
 
   @override
   void initState() {
     super.initState();
+
+    // Fade animation controller
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -34,6 +43,20 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
+
+    // Header animation controller
+    _headerController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _headerAnimation = Tween<double>(begin: 0.0, end: -_headerHeight).animate(
+      CurvedAnimation(parent: _headerController, curve: Curves.easeInOut),
+    );
+
+    // Scroll controller
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
+
     _fadeController.forward();
     _loadCategory();
   }
@@ -41,7 +64,31 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen>
   @override
   void dispose() {
     _fadeController.dispose();
+    _headerController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _handleScroll() {
+    final currentOffset = _scrollController.offset;
+    final delta = currentOffset - _lastScrollOffset;
+
+    // Only hide header when scrolling down and past a certain threshold
+    if (delta > 5 && currentOffset > 50 && _isHeaderVisible) {
+      setState(() {
+        _isHeaderVisible = false;
+      });
+      _headerController.forward();
+    }
+    // Show header when scrolling up or at the top
+    else if ((delta < -5 || currentOffset <= 50) && !_isHeaderVisible) {
+      setState(() {
+        _isHeaderVisible = true;
+      });
+      _headerController.reverse();
+    }
+
+    _lastScrollOffset = currentOffset;
   }
 
   Future<void> _loadCategory() async {
@@ -153,10 +200,25 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen>
                       ),
                     ),
                   )
-                : Column(
+                : Stack(
                     children: [
-                      _buildHeaderSection(),
-                      Expanded(child: _buildProductsGrid()),
+                      // Main content with padding to account for header
+                      _buildProductsGrid(),
+                      // Animated header
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: AnimatedBuilder(
+                          animation: _headerAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(0, _headerAnimation.value),
+                              child: _buildHeaderSection(),
+                            );
+                          },
+                        ),
+                      ),
                     ],
                   ),
       ),
@@ -169,6 +231,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen>
         final bool isMobile = constraints.maxWidth < 768;
 
         return Container(
+          height: _headerHeight,
           padding: EdgeInsets.all(isMobile ? 20 : 40),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -253,6 +316,8 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen>
                                   color: Colors.white.withOpacity(0.8),
                                   fontWeight: FontWeight.w500,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ],
@@ -351,75 +416,92 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen>
 
             return Container(
               color: Colors.white,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(isMobile ? 20 : 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Results header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Found ${products.length} Products',
-                              style: TextStyle(
-                                fontSize: isMobile ? 20 : 24,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1A365D),
+              child: CustomScrollView(
+                controller: _scrollController,
+                slivers: [
+                  // Space for header
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: _headerHeight),
+                  ),
+
+                  // Content
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(isMobile ? 20 : 40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Results header
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Found ${products.length} Products',
+                                    style: TextStyle(
+                                      fontSize: isMobile ? 20 : 24,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF1A365D),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Discover products in ${category!.name}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Discover products in ${category!.name}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF4ECDC4),
+                                      Color(0xFF44A08D)
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text(
+                                  '🏷️ CATEGORY',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
+                            ],
                           ),
-                          child: const Text(
-                            '🏷️ CATEGORY',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11,
-                            ),
+                          const SizedBox(height: 32),
+                          // Products grid
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount:
+                                        isMobile ? 2 : (isTablet ? 2 : 4),
+                                    crossAxisSpacing: isMobile ? 16 : 24,
+                                    mainAxisSpacing: isMobile ? 20 : 24,
+                                    childAspectRatio: isMobile ? 0.6 : 0.60),
+                            itemCount: products.length,
+                            itemBuilder: (context, index) {
+                              final product = products[index];
+                              return ProductCard(product: product);
+                            },
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-                    // Products grid
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isMobile ? 1 : (isTablet ? 2 : 3),
-                        crossAxisSpacing: isMobile ? 0 : 24,
-                        mainAxisSpacing: isMobile ? 20 : 24,
-                        childAspectRatio: isMobile ? 1.2 : 0.8,
+                        ],
                       ),
-                      itemCount: products.length,
-                      itemBuilder: (context, index) {
-                        final product = products[index];
-                        return ProductCard(product: product);
-                      },
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },

@@ -17,6 +17,7 @@ import 'package:keiwaywellness/screens/category_product_screen.dart';
 import 'package:keiwaywellness/screens/checkout_screen.dart';
 import 'package:keiwaywellness/screens/home_screen.dart';
 import 'package:keiwaywellness/screens/login_screen.dart';
+import 'package:keiwaywellness/screens/order_details.dart';
 import 'package:keiwaywellness/screens/order_success_screen.dart';
 import 'package:keiwaywellness/screens/page_screen.dart';
 import 'package:keiwaywellness/screens/product_detail_screen.dart';
@@ -108,6 +109,13 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/cart',
       builder: (context, state) => const CartScreen(),
+    ),
+    GoRoute(
+      path: '/order-details/:orderId',
+      builder: (context, state) {
+        final orderId = state.pathParameters['orderId']!;
+        return OrderDetailsScreen(orderId: orderId);
+      },
     ),
     GoRoute(
       path: '/checkout',

@@ -76,8 +76,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         borderRadius: BorderRadius.circular(10),
                         child: Image.network(
                           displayLogoUrl!,
-                          width: 32,
-                          height: 32,
+                          scale: 3.3,
                           fit: BoxFit.cover,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
@@ -135,15 +134,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ),
                       ),
                     const SizedBox(width: 8),
-                    Text(
-                      displayName,
-                      style: const TextStyle(
-                        color: Color(0xFF1A365D),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
+                    // Text(
+                    //   displayName,
+                    //   style: const TextStyle(
+                    //     color: Color(0xFF1A365D),
+                    //     fontWeight: FontWeight.w800,
+                    //     fontSize: 18,
+                    //     letterSpacing: -0.5,
+                    //   ),
+                    // ),
                   ],
                 ),
               );
@@ -317,8 +316,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               Icons.person_outline_rounded,
                               'My Profile',
                               authProvider.userModel?.name ?? 'User'),
-                          _buildMobileMenuItem('orders',
-                              Icons.shopping_bag_outlined, 'My Orders', null),
+                          // _buildMobileMenuItem('orders',
+                          //     Icons.shopping_bag_outlined, 'My Orders', null),
                           _buildMobileMenuItem('settings',
                               Icons.settings_outlined, 'Settings', null),
                           const PopupMenuDivider(),
@@ -353,8 +352,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           Consumer<WebsiteContentProvider>(
             builder: (context, websiteProvider, child) {
               final config = websiteProvider.websiteConfig;
-              final displayName = siteName ?? config?.siteName ?? 'WellnessHub';
-              final displayLogoUrl = logoUrl ?? config?.logoUrl;
+              final displayName =
+                  siteName ?? config?.siteName ?? 'Keiway Wellness';
+              final displayLogoUrl = logoUrl ??
+                  'https://firebasestorage.googleapis.com/v0/b/keiwaywellness-810f7.firebasestorage.app/o/website_content%2Flogos%2F1749814988582_KWPL.png?alt=media&token=488ba67f-f7f6-4b51-8053-e09abdeaafb2';
 
               return GestureDetector(
                 onTap: () => context.go('/'),
@@ -367,7 +368,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           displayLogoUrl!,
                           // width: 60,
                           // height: 40,
-                          scale: 2.5,
+                          scale: 3,
                           fit: BoxFit.cover,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
@@ -665,12 +666,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             'My Profile',
                             'View and edit your profile',
                           ),
-                          _buildPopupMenuItem(
-                            'orders',
-                            Icons.shopping_bag_outlined,
-                            'My Orders',
-                            'Track your purchases',
-                          ),
+                          // _buildPopupMenuItem(
+                          //   'orders',
+                          // //   Icons.shopping_bag_outlined,
+                          // //   'My Orders',
+                          // //   'Track your purchases',
+                          // // ),
                           _buildPopupMenuItem(
                             'settings',
                             Icons.settings_outlined,
