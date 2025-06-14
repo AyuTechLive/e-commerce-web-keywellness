@@ -880,274 +880,301 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen>
 
             // Items List
             ...order!.items
-                .map((item) => Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAFBFC),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: item.hasDiscount
-                              ? Colors.green.withOpacity(0.3)
-                              : Colors.grey.withOpacity(0.2),
-                          width: item.hasDiscount ? 2 : 1,
+                .map((item) => InkWell(
+                      onTap: () {
+                        // Navigate to product detail page
+                        context.go('/product/${item.productId}');
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFBFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: item.hasDiscount
+                                ? Colors.green.withOpacity(0.3)
+                                : Colors.grey.withOpacity(0.2),
+                            width: item.hasDiscount ? 2 : 1,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Product Image
-                          Container(
-                            width: isMobile ? 60 : 80,
-                            height: isMobile ? 60 : 80,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Stack(
-                                children: [
-                                  Image.network(
-                                    item.imageUrl,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: Colors.grey[200],
-                                        child: const Icon(
-                                          Icons.shopping_bag_outlined,
-                                          color: Colors.grey,
-                                          size: 32,
-                                        ),
-                                      );
-                                    },
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Product Image
+                            Container(
+                              width: isMobile ? 60 : 80,
+                              height: isMobile ? 60 : 80,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  // Discount Badge
-                                  if (item.hasDiscount)
-                                    Positioned(
-                                      top: 4,
-                                      right: 4,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          '${item.discountPercentage.toStringAsFixed(0)}%',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Stack(
+                                  children: [
+                                    Image.network(
+                                      item.imageUrl,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return Container(
+                                          color: Colors.grey[200],
+                                          child: const Icon(
+                                            Icons.shopping_bag_outlined,
+                                            color: Colors.grey,
+                                            size: 32,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    // Discount Badge
+                                    if (item.hasDiscount)
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            '${item.discountPercentage.toStringAsFixed(0)}%',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                       ),
+                                    // Clickable indicator
+                                    Positioned(
+                                      bottom: 4,
+                                      right: 4,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.7),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: const Icon(
+                                          Icons.open_in_new,
+                                          color: Colors.white,
+                                          size: 12,
+                                        ),
+                                      ),
                                     ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
+                            const SizedBox(width: 16),
 
-                          // Product Details
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.name,
-                                  style: TextStyle(
-                                    fontSize: isMobile ? 16 : 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF1A365D),
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 8),
-
-                                // Quantity and Package Info
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [
-                                            Color(0xFF667EEA),
-                                            Color(0xFF764BA2)
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        'Qty: ${item.quantity}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
+                            // Product Details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    style: TextStyle(
+                                      fontSize: isMobile ? 16 : 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF1A365D),
                                     ),
-                                    if (item.formattedProductQuantity
-                                        .isNotEmpty) ...[
-                                      const SizedBox(width: 8),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // Quantity and Package Info
+                                  Row(
+                                    children: [
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 8,
                                           vertical: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.blue[100],
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF667EEA),
+                                              Color(0xFF764BA2)
+                                            ],
+                                          ),
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
                                         child: Text(
-                                          item.formattedProductQuantity,
-                                          style: TextStyle(
-                                            color: Colors.blue[700],
+                                          'Qty: ${item.quantity}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
-                                    ],
-                                    if (item.hasDiscount) ...[
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                        child: const Text(
-                                          'SALE',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
+                                      if (item.formattedProductQuantity
+                                          .isNotEmpty) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue[100],
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            item.formattedProductQuantity,
+                                            style: TextStyle(
+                                              color: Colors.blue[700],
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-
-                                // Price Information
-                                if (item.hasDiscount) ...[
-                                  Row(
-                                    children: [
-                                      Text(
-                                        '₹${item.originalPrice!.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
-                                          decoration:
-                                              TextDecoration.lineThrough,
+                                      ],
+                                      if (item.hasDiscount) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: const Text(
+                                            'SALE',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '₹${item.price.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.green,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'each',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[500],
-                                        ),
-                                      ),
+                                      ],
                                     ],
                                   ),
+                                  const SizedBox(height: 8),
+
+                                  // Price Information
+                                  if (item.hasDiscount) ...[
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '₹${item.originalPrice!.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '₹${item.price.toStringAsFixed(2)}',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'each',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[500],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'You saved ₹${item.savings.toStringAsFixed(2)} on this item',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ] else
+                                    Text(
+                                      '₹${item.price.toStringAsFixed(2)} each',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            // Item Total
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF00D4AA),
+                                        Color(0xFF4FD1C7)
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '₹${item.total.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                if (item.hasDiscount) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    'You saved ₹${item.savings.toStringAsFixed(2)} on this item',
+                                    'Saved ₹${item.savings.toStringAsFixed(2)}',
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       color: Colors.green,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                ] else
-                                  Text(
-                                    '₹${item.price.toStringAsFixed(2)} each',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[700],
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                                ],
                               ],
                             ),
-                          ),
-
-                          // Item Total
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF00D4AA),
-                                      Color(0xFF4FD1C7)
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '₹${item.total.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              if (item.hasDiscount) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Saved ₹${item.savings.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ))
                 .toList(),

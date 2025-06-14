@@ -10,11 +10,13 @@ import 'package:keiwaywellness/providers/auth_provider.dart';
 import 'package:keiwaywellness/providers/cart_provider.dart';
 import 'package:keiwaywellness/providers/category_provider.dart';
 import 'package:keiwaywellness/providers/product_provider.dart';
+import 'package:keiwaywellness/providers/review_provider.dart';
 import 'package:keiwaywellness/providers/website_content_provider.dart';
 import 'package:keiwaywellness/screens/allcategories.dart';
 import 'package:keiwaywellness/screens/cart_screen.dart';
 import 'package:keiwaywellness/screens/category_product_screen.dart';
 import 'package:keiwaywellness/screens/checkout_screen.dart';
+import 'package:keiwaywellness/screens/contact_us.dart';
 import 'package:keiwaywellness/screens/home_screen.dart';
 import 'package:keiwaywellness/screens/login_screen.dart';
 import 'package:keiwaywellness/screens/order_details.dart';
@@ -44,6 +46,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
         ChangeNotifierProvider(create: (_) => WebsiteContentProvider()),
+        ChangeNotifierProvider(create: (context) => ReviewProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
@@ -144,6 +147,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/profile',
       builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/contact-us',
+      builder: (context, state) => const ContactUsScreen(),
     ),
     GoRoute(
       path: '/category/:id',

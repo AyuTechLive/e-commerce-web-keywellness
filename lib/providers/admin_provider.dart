@@ -819,6 +819,12 @@ class AdminProvider extends ChangeNotifier {
 
       if (!doc.exists) {
         final defaultConfig = WebsiteConfig(
+          contactUs: PageContent(
+              title: 'title',
+              subtitle: 'subtitle',
+              content: 'content',
+              keyPoints: [],
+              lastUpdated: DateTime.now()),
           id: 'main',
           siteName: 'WellnessHub',
           logoUrl: '',

@@ -1,4 +1,4 @@
-// Modern checkout_screen.dart with address management
+// checkout_screen.dart - Fixed and Optimized for Fast PhonePe Initiation
 import 'package:flutter/material.dart';
 import 'package:keiwaywellness/service/payment_service.dart';
 import 'package:keiwaywellness/service/shiprocket_service.dart';
@@ -21,13 +21,11 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   final _formKey = GlobalKey<FormState>();
   final _addressFormKey = GlobalKey<FormState>();
 
-  // Customer details controllers
+  // Controllers
   final _nameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-
-  // Address controllers for new address form
   final _addressNameController = TextEditingController();
   final _addressController = TextEditingController();
   final _address2Controller = TextEditingController();
@@ -50,14 +48,13 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   void initState() {
     super.initState();
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
     );
     _loadUserData();
-    _printDebugInfo();
     _fadeController.forward();
   }
 
@@ -75,11 +72,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
     _stateController.dispose();
     _pinCodeController.dispose();
     super.dispose();
-  }
-
-  void _printDebugInfo() {
-    final paymentService = PaymentService();
-    paymentService.printEnvironmentInfo();
   }
 
   Future<void> _testConnection() async {
@@ -123,7 +115,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               ),
               const SizedBox(height: 8),
               const Text(
-                'Checking PhonePe & Delhivery services...\nThis may take a few seconds.',
+                'Checking services...',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white70,
@@ -143,101 +135,20 @@ class _CheckoutScreenState extends State<CheckoutScreen>
 
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: success ? Colors.green : Colors.red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    success ? Icons.check_circle : Icons.error,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    success
-                        ? '✅ PhonePe & Delhivery ready!\nPayment and shipping services are working properly.'
-                        : '❌ Connection failed.\nCheck console for details or ensure you are logged in.',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: success ? Colors.green[600] : Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
-          action: !success
-              ? SnackBarAction(
-                  label: 'Retry',
-                  textColor: Colors.white,
-                  onPressed: _testConnection,
-                )
-              : null,
-        ),
+      _showSnackBar(
+        success ? '✅ Services ready!' : '❌ Connection issues detected',
+        success ? Colors.green[600]! : Colors.red[600]!,
+        action: !success
+            ? SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.white,
+                onPressed: _testConnection,
+              )
+            : null,
       );
     } catch (e) {
       Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.error,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '❌ Test failed: ${e.toString()}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: _testConnection,
-          ),
-        ),
-      );
+      _showSnackBar('❌ Test failed', Colors.red[600]!);
     }
   }
 
@@ -259,109 +170,21 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       });
 
       if (serviceability != null && serviceability['serviceable']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Container(
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '✅ Delivery available for pincode $pincode',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            backgroundColor: Colors.green[600],
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.all(16),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        _showSnackBar('✅ Delivery available for $pincode', Colors.green[600]!);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Container(
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.cancel,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '❌ Delivery not available for pincode $pincode',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            backgroundColor: Colors.red[600],
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.all(16),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        _showSnackBar(
+            '❌ Delivery not available for $pincode', Colors.red[600]!);
       }
     } catch (e) {
       setState(() {
         _isCheckingServiceability = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error checking delivery: ${e.toString()}'),
-          backgroundColor: Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      _showSnackBar('❌ Error checking delivery', Colors.red[600]!);
     }
   }
 
   Future<void> _saveNewAddress() async {
-    if (!_addressFormKey.currentState!.validate()) {
-      return;
-    }
+    if (!_addressFormKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -384,7 +207,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         _selectedAddress = newAddress;
         _showAddressForm = false;
         _setAsDefault = false;
-        // Clear form
         _addressNameController.clear();
         _addressController.clear();
         _address2Controller.clear();
@@ -394,149 +216,24 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         _serviceabilityInfo = null;
       });
 
-      // Check serviceability for the newly added address
       await _checkServiceability(newAddress.pinCode);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    '✅ Address saved successfully!',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.green[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      _showSnackBar('✅ Address saved successfully!', Colors.green[600]!);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Failed to save address: $error'),
-          backgroundColor: Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      _showSnackBar('❌ Failed to save address: $error', Colors.red[600]!);
     }
   }
 
   Future<void> _placeOrder() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     if (_selectedAddress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.location_off,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    '❌ Please select a delivery address.',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      _showSnackBar('❌ Please select a delivery address.', Colors.red[600]!);
       return;
     }
 
-    // Check if we have serviceability info for selected address
     if (_serviceabilityInfo == null || !_serviceabilityInfo!['serviceable']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.location_off,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    '❌ Delivery not available for selected address.',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      _showSnackBar(
+          '❌ Delivery not available for selected address.', Colors.red[600]!);
       return;
     }
 
@@ -545,30 +242,21 @@ class _CheckoutScreenState extends State<CheckoutScreen>
     });
 
     try {
-      print('💳 Starting PAYMENT-FIRST order flow...');
-
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       if (authProvider.user == null) {
-        throw Exception('User not authenticated. Please login first.');
+        throw Exception('User not authenticated');
       }
 
-      // Calculate totals
       final subtotal = cartProvider.totalAmount;
       final shipping = subtotal > 500 ? 0.0 : 0.0;
       final total = subtotal + shipping;
 
-      // Generate transaction ID
       final paymentService = PaymentService();
       final orderId = await paymentService.generateTransactionId();
 
-      print('📋 Order Details:');
-      print('   Order ID: $orderId');
-      print('   Total: ₹$total');
-
-      // Step 1: Initiate payment FIRST (don't save order yet)
-      print('💳 Step 1: Initiating payment...');
+      // Initiate payment
       final paymentSuccess = await paymentService.initiatePayment(
         amount: total,
         orderId: orderId,
@@ -577,14 +265,10 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       );
 
       if (!paymentSuccess) {
-        throw Exception('Payment initiation failed. Please try again.');
+        throw Exception('Payment initiation failed');
       }
 
-      print('✅ Payment initiated successfully');
-
-      // Step 2: Save order details temporarily for payment verification
-      print('💾 Step 2: Saving temporary order data...');
-
+      // Save order data
       final customerDetails = {
         'name': _nameController.text.trim(),
         'lastName': _lastNameController.text.trim(),
@@ -603,7 +287,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         'country': 'India'
       };
 
-      // Save pending order data (for payment verification)
       await paymentService.savePendingOrderData(
         orderId: orderId,
         userId: authProvider.user!.uid,
@@ -625,55 +308,16 @@ class _CheckoutScreenState extends State<CheckoutScreen>
             : null,
       );
 
-      // Step 3: Clear cart only after payment initiation success
       cartProvider.clearCart();
 
-      // Step 4: Show success message and navigate
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.payment,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    '💳 Payment initiated!\nComplete payment to confirm your order.',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.blue[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
-        ),
+      _showSnackBar(
+        '💳 Payment initiated!\nComplete payment to confirm your order.',
+        Colors.blue[600]!,
+        duration: const Duration(seconds: 3),
       );
 
-      // Navigate to payment verification page
       context.go('/payment-verification/$orderId');
     } catch (e) {
-      print('💥 Order placement failed: $e');
-
       String errorMessage = 'Order failed: ';
       if (e.toString().contains('unauthenticated')) {
         errorMessage += 'Please login and try again.';
@@ -681,54 +325,18 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         errorMessage += 'Invalid details. Please check your information.';
       } else if (e.toString().contains('internal')) {
         errorMessage += 'Server error. Please try again later.';
-      } else if (e.toString().contains('serviceable')) {
-        errorMessage += 'Pincode not serviceable.';
       } else {
         errorMessage += 'Please check your connection and try again.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.error,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '❌ $errorMessage',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.red[600],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 8),
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: _placeOrder,
-          ),
+      _showSnackBar(
+        '❌ $errorMessage',
+        Colors.red[600]!,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: _placeOrder,
         ),
       );
     } finally {
@@ -745,17 +353,40 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       _emailController.text = authProvider.userModel!.email;
       _phoneController.text = authProvider.userModel!.phone;
 
-      // Set default address if available and check its serviceability
       if (authProvider.userModel!.addresses.isNotEmpty) {
         _selectedAddress = authProvider.userModel!.defaultAddress ??
             authProvider.userModel!.addresses.first;
 
-        // Check serviceability for the selected address
         if (_selectedAddress != null) {
           _checkServiceability(_selectedAddress!.pinCode);
         }
       }
     }
+  }
+
+  void _showSnackBar(
+    String message,
+    Color backgroundColor, {
+    Duration duration = const Duration(seconds: 3),
+    SnackBarAction? action,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: duration,
+        action: action,
+      ),
+    );
   }
 
   @override
@@ -782,12 +413,10 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                     padding: EdgeInsets.all(isMobile ? 16 : 24),
                     child: Column(
                       children: [
-                        // Discount Banner (if applicable)
                         if (cartProvider.hasDiscounts) ...[
                           _buildDiscountBanner(cartProvider, isMobile),
                           const SizedBox(height: 24),
                         ],
-
                         if (isMobile)
                           Column(
                             children: [
@@ -1041,20 +670,17 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               ),
               const SizedBox(height: 24),
 
-              // Customer Information Section
               _buildInfoCard(
                 icon: Icons.person,
                 iconColor: Colors.purple[600]!,
                 title: 'Customer Information',
-                description:
-                    'Required for Delhivery shipping and order tracking',
+                description: 'Required for order tracking',
                 backgroundColor: Colors.purple[50]!,
                 borderColor: Colors.purple[200]!,
               ),
 
               const SizedBox(height: 24),
 
-              // Customer Name Fields
               Row(
                 children: [
                   Expanded(
@@ -1082,7 +708,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               ),
               const SizedBox(height: 16),
 
-              // Email and Phone
               Row(
                 children: [
                   Expanded(
@@ -1127,10 +752,28 @@ class _CheckoutScreenState extends State<CheckoutScreen>
 
               const SizedBox(height: 32),
 
-              // Shipping Address Section
               _buildAddressSection(authProvider, isMobile),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              // Test Connection Button
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: OutlinedButton.icon(
+                  onPressed: _testConnection,
+                  icon: const Icon(Icons.wifi_tethering, size: 18),
+                  label: const Text('Test Connection'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF667EEA),
+                    side: const BorderSide(color: Color(0xFF667EEA)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1150,10 +793,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
           backgroundColor: Colors.green[50]!,
           borderColor: Colors.green[200]!,
         ),
-
         const SizedBox(height: 24),
-
-        // Existing Addresses
         if (authProvider.userModel!.addresses.isNotEmpty) ...[
           Text(
             'Select Delivery Address',
@@ -1164,22 +804,16 @@ class _CheckoutScreenState extends State<CheckoutScreen>
             ),
           ),
           const SizedBox(height: 16),
-
-          // Address List
           ...authProvider.userModel!.addresses
               .map((address) => _buildAddressCard(address, authProvider)),
-
           const SizedBox(height: 24),
         ],
-
-        // Add New Address Button
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
             border: Border.all(
               color: const Color(0xFF667EEA),
               width: 2,
-              style: BorderStyle.solid,
             ),
             borderRadius: BorderRadius.circular(16),
           ),
@@ -1222,8 +856,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
             ),
           ),
         ),
-
-        // New Address Form
         if (_showAddressForm) ...[
           const SizedBox(height: 24),
           _buildNewAddressForm(isMobile),
@@ -1252,7 +884,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
           setState(() {
             _selectedAddress = address;
           });
-          // Check serviceability when address is selected
           _checkServiceability(address.pinCode);
         },
         borderRadius: BorderRadius.circular(16),
@@ -1453,8 +1084,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               ],
             ),
             const SizedBox(height: 20),
-
-            // Address Name
             _buildTextField(
               controller: _addressNameController,
               label: 'Address Name (e.g., Home, Office) *',
@@ -1467,8 +1096,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               },
             ),
             const SizedBox(height: 16),
-
-            // Address Line 1
             _buildTextField(
               controller: _addressController,
               label: 'Address Line 1 *',
@@ -1486,8 +1113,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               },
             ),
             const SizedBox(height: 16),
-
-            // Address Line 2
             _buildTextField(
               controller: _address2Controller,
               label: 'Address Line 2 (Optional)',
@@ -1495,8 +1120,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               helperText: 'Landmark, Area name',
             ),
             const SizedBox(height: 16),
-
-            // City, State, PIN Code
             Row(
               children: [
                 Expanded(
@@ -1581,8 +1204,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                 ),
               ],
             ),
-
-            // Serviceability Info
             if (_serviceabilityInfo != null) ...[
               const SizedBox(height: 16),
               Container(
@@ -1635,10 +1256,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                 ),
               ),
             ],
-
             const SizedBox(height: 20),
-
-            // Set as Default Checkbox
             CheckboxListTile(
               value: _setAsDefault,
               onChanged: (value) {
@@ -1664,10 +1282,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               activeColor: const Color(0xFF667EEA),
               contentPadding: EdgeInsets.zero,
             ),
-
             const SizedBox(height: 20),
-
-            // Save Address Button
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -1845,7 +1460,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 Container(
@@ -1893,8 +1507,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               ],
             ),
             const SizedBox(height: 24),
-
-            // Items List
             Container(
               constraints: const BoxConstraints(maxHeight: 300),
               child: SingleChildScrollView(
@@ -1916,7 +1528,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Product Image
                                 Container(
                                   width: 50,
                                   height: 50,
@@ -1951,7 +1562,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                                             );
                                           },
                                         ),
-                                        // Discount Badge on Image
                                         if (item.hasDiscount)
                                           Positioned(
                                             top: 2,
@@ -1982,8 +1592,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-
-                                // Product Details
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -2000,8 +1608,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 4),
-
-                                      // Quantity and Price Info
                                       Row(
                                         children: [
                                           Container(
@@ -2053,8 +1659,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                                           ],
                                         ],
                                       ),
-
-                                      // Price Information
                                       if (item.hasDiscount) ...[
                                         const SizedBox(height: 4),
                                         Row(
@@ -2098,8 +1702,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                                     ],
                                   ),
                                 ),
-
-                                // Item Total
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
@@ -2146,21 +1748,15 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
             Divider(color: Colors.grey[300]),
             const SizedBox(height: 16),
-
-            // Discount Summary (if applicable)
             if (cartProvider.hasDiscounts) ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      Colors.green[50]!,
-                      Colors.green[100]!,
-                    ],
+                    colors: [Colors.green[50]!, Colors.green[100]!],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -2233,8 +1829,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
               ),
               const SizedBox(height: 16),
             ],
-
-            // Order Totals
             _buildSummaryRow('Subtotal', '₹${subtotal.toStringAsFixed(2)}'),
             const SizedBox(height: 8),
             _buildSummaryRow(
@@ -2245,9 +1839,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                   : 'Add ₹${(500 - subtotal).toStringAsFixed(2)} for free shipping',
               currentSubtotal: subtotal,
             ),
-
             const SizedBox(height: 12),
-            // Shipping Info
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -2283,19 +1875,14 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
             Divider(color: Colors.grey[300]),
             const SizedBox(height: 12),
-
-            // Final Total
             _buildSummaryRow(
               'Total Amount',
               '₹${total.toStringAsFixed(2)}',
               isTotal: true,
             ),
-
-            // Total Savings Highlight
             if (cartProvider.hasDiscounts) ...[
               const SizedBox(height: 12),
               Container(
@@ -2324,10 +1911,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                 ),
               ),
             ],
-
             const SizedBox(height: 24),
-
-            // Place Order Button
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -2423,7 +2007,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                                   ),
                                 ],
                                 const Text(
-                                  'Order confirmed only after payment success',
+                                  'Secure payment with PhonePe',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.white70,
@@ -2436,10 +2020,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                       ),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Security Notice
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -2464,7 +2045,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
-                      'Secure payment • No charges if payment fails • Order confirmed only after successful payment',
+                      'Secure payment • Order confirmed only after successful payment',
                       style: TextStyle(
                         fontSize: 12,
                         color: Color(0xFF1A365D),

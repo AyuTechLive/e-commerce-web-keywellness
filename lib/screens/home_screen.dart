@@ -1667,9 +1667,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               _buildFooterColumn('Quick Links', [
                 'About Us',
-                'Our Story',
+                // 'Our Story',
                 'Sale Products',
-                'Careers',
+                // 'Careers',
               ]),
               const SizedBox(height: 24),
               _buildFooterColumn('Customer Care', [
@@ -1682,8 +1682,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _buildFooterColumn('Legal', [
                 'Privacy Policy',
                 'Terms of Service',
-                'Cookie Policy',
-                'Accessibility',
+                'Refund Policy',
+                //   'Accessibility',
               ]),
             ],
           );
@@ -1695,21 +1695,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             _buildFooterColumn('Quick Links', [
               'About Us',
-              'Our Story',
+              // 'Our Story',
               'Sale Products',
-              'Careers',
+              //'Careers',
             ]),
             _buildFooterColumn('Customer Care', [
               'Help Center',
               'Shipping Info',
-              'Returns',
+              //'Returns',
               'Track Order',
             ]),
             _buildFooterColumn('Legal', [
               'Privacy Policy',
               'Terms of Service',
-              'Cookie Policy',
-              'Accessibility',
+              'Refund Policy',
+              //  'Accessibility',
             ]),
           ],
         );
@@ -1741,9 +1741,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     case 'sale products':
                       context.go('/products?filter=sale');
                       break;
-                    case 'help center':
-                      context.go('/help');
+
+                    case 'refund policy':
+                      context.go('/refund');
                       break;
+
+                    case 'help center':
+                      context.go('/contact-us');
+                      break;
+                    case 'shipping info':
+                      context.go('/profile');
+                      break;
+                    case 'track order':
+                      context.go('/profile');
+                      break;
+
                     case 'privacy policy':
                       context.go('/privacy');
                       break;

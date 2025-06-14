@@ -1,4 +1,4 @@
-// models/website_content.dart
+// models/website_content.dart (Updated)
 class WebsiteConfig {
   final String id;
   final String siteName;
@@ -13,6 +13,7 @@ class WebsiteConfig {
   final PageContent privacyPolicy;
   final PageContent termsConditions;
   final PageContent refundPolicy;
+  final PageContent contactUs; // Added Contact Us page
   final DateTime updatedAt;
 
   WebsiteConfig({
@@ -29,6 +30,7 @@ class WebsiteConfig {
     required this.privacyPolicy,
     required this.termsConditions,
     required this.refundPolicy,
+    required this.contactUs, // Added Contact Us page
     required this.updatedAt,
   });
 
@@ -55,6 +57,8 @@ class WebsiteConfig {
       privacyPolicy: PageContent.fromMap(map['privacyPolicy'] ?? {}),
       termsConditions: PageContent.fromMap(map['termsConditions'] ?? {}),
       refundPolicy: PageContent.fromMap(map['refundPolicy'] ?? {}),
+      contactUs:
+          PageContent.fromMap(map['contactUs'] ?? {}), // Added Contact Us page
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
           map['updatedAt'] ?? DateTime.now().millisecondsSinceEpoch),
     );
@@ -74,6 +78,7 @@ class WebsiteConfig {
       'privacyPolicy': privacyPolicy.toMap(),
       'termsConditions': termsConditions.toMap(),
       'refundPolicy': refundPolicy.toMap(),
+      'contactUs': contactUs.toMap(), // Added Contact Us page
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     };
   }

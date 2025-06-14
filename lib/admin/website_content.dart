@@ -26,7 +26,7 @@ class _WebsiteContentManagementScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this); // Updated to 7 tabs
+    _tabController = TabController(length: 8, vsync: this); // Updated to 7 tabs
 
     // Load website config when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -150,6 +150,9 @@ class _WebsiteContentManagementScreenState
             Tab(text: 'Statistics', icon: Icon(Icons.analytics)),
             Tab(text: 'Social Media', icon: Icon(Icons.share)),
             Tab(text: 'About Us', icon: Icon(Icons.info)),
+            Tab(
+                text: 'Contact Us',
+                icon: Icon(Icons.contact_mail)), // Added this line
             Tab(text: 'Policies', icon: Icon(Icons.policy)),
             Tab(text: 'Terms', icon: Icon(Icons.gavel)),
           ],
@@ -196,11 +199,38 @@ class _WebsiteContentManagementScreenState
               _buildStatisticsTab(provider),
               _buildSocialMediaTab(provider),
               _buildAboutUsTab(provider),
+              _buildContactUsTab(provider), // Added this line
               _buildPoliciesTab(provider),
               _buildTermsTab(provider),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildContactUsTab(WebsiteContentProvider provider) {
+    final config = provider.websiteConfig;
+    if (config == null)
+      return const Center(child: Text('No configuration found'));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Contact Us Page Content',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          _PageContentForm(
+            pageContent: config.contactUs,
+            pageType: 'contactUs',
+            provider: provider,
+            onPickImage: _pickAndUploadImage,
+          ),
+        ],
       ),
     );
   }
@@ -1090,6 +1120,8 @@ class _PageContentFormState extends State<_PageContentForm> {
         return 'Terms & Conditions';
       case 'refundPolicy':
         return 'Refund Policy';
+      case 'contactUs': // Add this case
+        return 'Contact Us';
       default:
         return 'Page';
     }

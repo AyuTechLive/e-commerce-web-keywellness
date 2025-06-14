@@ -666,9 +666,9 @@ class _AboutUsScreenState extends State<AboutUsScreen>
           children: [
             _buildFooterColumn('Quick Links', [
               'About Us',
-              'Our Story',
+              // 'Our Story',
               'Sale Products',
-              'Careers',
+              // 'Careers',
             ]),
             _buildFooterColumn('Customer Care', [
               'Help Center',
@@ -679,8 +679,8 @@ class _AboutUsScreenState extends State<AboutUsScreen>
             _buildFooterColumn('Legal', [
               'Privacy Policy',
               'Terms of Service',
-              'Cookie Policy',
-              'Accessibility',
+              'Refund Policy',
+              // 'Accessibility',
             ]),
           ],
         );
@@ -713,13 +713,25 @@ class _AboutUsScreenState extends State<AboutUsScreen>
                       context.go('/products?filter=sale');
                       break;
                     case 'help center':
-                      context.go('/help');
+                      context.go('/contact-us');
                       break;
                     case 'privacy policy':
                       context.go('/privacy');
                       break;
+                    case 'shipping info':
+                      context.go('/profile');
+                      break;
+                    case 'returns':
+                      context.go('/profile');
+                      break;
+                    case 'track order':
+                      context.go('/profile');
+                      break;
                     case 'terms of service':
                       context.go('/terms');
+                      break;
+                    case 'refund policy':
+                      context.go('/refund');
                       break;
                     default:
                       break;

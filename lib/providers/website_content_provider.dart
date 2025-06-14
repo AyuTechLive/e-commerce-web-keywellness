@@ -1,4 +1,4 @@
-// providers/website_content_provider.dart
+// providers/website_content_provider.dart (Updated)
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/website_content.dart';
@@ -375,6 +375,59 @@ Address: 123 Wellness Street, Health City, HC 12345''',
         ],
         lastUpdated: DateTime.now(),
       ),
+      contactUs: PageContent(
+        title: 'Contact Us',
+        subtitle: 'We\'re here to help you with any questions or concerns',
+        content:
+            '''At WellnessHub, we believe in building strong relationships with our customers. Whether you have questions about our products, need assistance with your order, or want to share feedback, we\'re here to listen and help.
+
+Get in Touch
+Our dedicated customer support team is available to assist you with:
+
+• Product information and recommendations
+• Order status and tracking
+• Returns and exchanges
+• Technical support
+• General inquiries
+• Feedback and suggestions
+
+Multiple Ways to Reach Us
+We offer various convenient ways to get in touch with our team. Choose the method that works best for you, and we\'ll respond as quickly as possible.
+
+Response Times
+- Email: Within 24 hours during business days
+- Phone: Immediate assistance during business hours
+- Live Chat: Available on our website during business hours
+- Social Media: We monitor our social channels regularly
+
+Our Commitment
+When you contact us, you can expect:
+- Prompt and professional responses
+- Knowledgeable assistance from trained staff
+- Follow-up to ensure your issue is resolved
+- Respect for your time and privacy
+
+Visit Our Store
+If you prefer face-to-face interaction, we welcome you to visit our physical location. Our friendly staff will be happy to assist you with product selection, demonstrations, and any questions you may have.
+
+Feedback Welcome
+Your feedback helps us improve our products and services. We appreciate both positive reviews and constructive criticism, as they help us serve you better.''',
+        keyPoints: [
+          '24/7 customer support available',
+          'Multiple contact methods for your convenience',
+          'Quick response times - within 24 hours',
+          'Knowledgeable and friendly support staff',
+          'In-person assistance at our physical store',
+          'We value and act on your feedback'
+        ],
+        contactInfo: ContactInfo(
+          email: 'support@wellnesshub.com',
+          phone: '+91-9876543210',
+          address: '123 Wellness Street, Health City, HC 12345',
+          workingHours: 'Monday to Saturday: 9 AM - 8 PM\nSunday: 10 AM - 6 PM',
+        ),
+        lastUpdated: DateTime.now(),
+      ),
       updatedAt: DateTime.now(),
     );
 
@@ -431,6 +484,7 @@ Address: 123 Wellness Street, Health City, HC 12345''',
       privacyPolicy: _websiteConfig!.privacyPolicy,
       termsConditions: _websiteConfig!.termsConditions,
       refundPolicy: _websiteConfig!.refundPolicy,
+      contactUs: _websiteConfig!.contactUs, // Added contactUs
       updatedAt: DateTime.now(),
     );
 
@@ -448,6 +502,7 @@ Address: 123 Wellness Street, Health City, HC 12345''',
     PageContent privacyPolicy = _websiteConfig!.privacyPolicy;
     PageContent termsConditions = _websiteConfig!.termsConditions;
     PageContent refundPolicy = _websiteConfig!.refundPolicy;
+    PageContent contactUs = _websiteConfig!.contactUs; // Added contactUs
 
     switch (pageType) {
       case 'aboutUs':
@@ -461,6 +516,9 @@ Address: 123 Wellness Street, Health City, HC 12345''',
         break;
       case 'refundPolicy':
         refundPolicy = content;
+        break;
+      case 'contactUs': // Added contactUs case
+        contactUs = content;
         break;
       default:
         return 'Invalid page type';
@@ -480,6 +538,7 @@ Address: 123 Wellness Street, Health City, HC 12345''',
       privacyPolicy: privacyPolicy,
       termsConditions: termsConditions,
       refundPolicy: refundPolicy,
+      contactUs: contactUs, // Added contactUs
       updatedAt: DateTime.now(),
     );
 
@@ -516,6 +575,7 @@ Address: 123 Wellness Street, Health City, HC 12345''',
       privacyPolicy: _websiteConfig!.privacyPolicy,
       termsConditions: _websiteConfig!.termsConditions,
       refundPolicy: _websiteConfig!.refundPolicy,
+      contactUs: _websiteConfig!.contactUs, // Added contactUs
       updatedAt: DateTime.now(),
     );
 
@@ -543,6 +603,7 @@ Address: 123 Wellness Street, Health City, HC 12345''',
       privacyPolicy: _websiteConfig!.privacyPolicy,
       termsConditions: _websiteConfig!.termsConditions,
       refundPolicy: _websiteConfig!.refundPolicy,
+      contactUs: _websiteConfig!.contactUs, // Added contactUs
       updatedAt: DateTime.now(),
     );
 
@@ -579,6 +640,7 @@ Address: 123 Wellness Street, Health City, HC 12345''',
       privacyPolicy: _websiteConfig!.privacyPolicy,
       termsConditions: _websiteConfig!.termsConditions,
       refundPolicy: _websiteConfig!.refundPolicy,
+      contactUs: _websiteConfig!.contactUs, // Added contactUs
       updatedAt: DateTime.now(),
     );
 
@@ -605,6 +667,7 @@ Address: 123 Wellness Street, Health City, HC 12345''',
       privacyPolicy: _websiteConfig!.privacyPolicy,
       termsConditions: _websiteConfig!.termsConditions,
       refundPolicy: _websiteConfig!.refundPolicy,
+      contactUs: _websiteConfig!.contactUs, // Added contactUs
       updatedAt: DateTime.now(),
     );
 
@@ -629,6 +692,7 @@ Address: 123 Wellness Street, Health City, HC 12345''',
       privacyPolicy: _websiteConfig!.privacyPolicy,
       termsConditions: _websiteConfig!.termsConditions,
       refundPolicy: _websiteConfig!.refundPolicy,
+      contactUs: _websiteConfig!.contactUs, // Added contactUs
       updatedAt: DateTime.now(),
     );
 

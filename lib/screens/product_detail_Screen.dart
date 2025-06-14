@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:keiwaywellness/widgets/rivew_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:keiwaywellness/service/shiprocket_service.dart';
 import '../providers/product_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/review_provider.dart';
 import '../models/product.dart';
 import '../widgets/app_bar_widget.dart';
 import '../widgets/product_card.dart';
@@ -91,6 +93,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           isLoading = false;
         });
         _fadeController.forward();
+
+        // Load reviews after product is loaded
+        context.read<ReviewProvider>().loadProductReviews(widget.productId);
       }
     } else {
       if (mounted) {
@@ -278,6 +283,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   children: [
                     _buildProductImage(),
                     _buildProductDetails(),
+
+                    // Add Review Section for Mobile
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      child: ProductReviewSection(productId: widget.productId),
+                    ),
+
                     if (relatedProducts.isNotEmpty) _buildRelatedProducts(),
                   ],
                 ),
@@ -306,6 +318,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         ],
                       ),
                     ),
+
+                    // Add Review Section for Desktop (Full Width)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 20),
+                      child: ProductReviewSection(productId: widget.productId),
+                    ),
+
                     // Related products below main content
                     if (relatedProducts.isNotEmpty) _buildRelatedProducts(),
                   ],
@@ -452,27 +472,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
 
           const SizedBox(height: 16),
 
-          // Star Rating
-          Row(
-            children: [
-              ...List.generate(
-                  5,
-                  (index) => Icon(
-                        Icons.star,
-                        color: index < product!.rating
-                            ? const Color(0xFFFFB300)
-                            : Colors.grey[300],
-                        size: 18,
-                      )),
-              const SizedBox(width: 8),
-              Text(
-                '${product!.rating.toStringAsFixed(1)} (2 reviews)',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF666666),
-                ),
-              ),
-            ],
+          // Enhanced Star Rating with Review Count
+          Consumer<ReviewProvider>(
+            builder: (context, reviewProvider, child) {
+              final statistics =
+                  reviewProvider.getProductReviewStatistics(widget.productId);
+              final displayRating = statistics.totalReviews > 0
+                  ? statistics.averageRating
+                  : product!.rating;
+              final displayCount = statistics.totalReviews > 0
+                  ? statistics.totalReviews
+                  : product!.reviewCount;
+
+              return Row(
+                children: [
+                  ...List.generate(
+                      5,
+                      (index) => Icon(
+                            Icons.star,
+                            color: index < displayRating
+                                ? const Color(0xFFFFB300)
+                                : Colors.grey[300],
+                            size: 18,
+                          )),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${displayRating.toStringAsFixed(1)} ($displayCount reviews)',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF666666),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 24),
@@ -525,13 +558,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                '(₹${(product!.price / 200).toStringAsFixed(1)}/ml)',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF666666),
+              if (product!.quantity != null && product!.quantity! > 0)
+                Text(
+                  '(₹${(product!.price / product!.quantity!).toStringAsFixed(1)}/${product!.unit ?? 'unit'})',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF666666),
+                  ),
                 ),
-              ),
             ],
           ),
 
@@ -719,44 +753,44 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           const SizedBox(height: 16),
 
           // Credits Section
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.orange[50],
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.orange[200]!),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: const BoxDecoration(
-                    color: Colors.orange,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.currency_rupee,
-                    color: Colors.white,
-                    size: 12,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'You will earn ₹${(product!.price * 0.07).toStringAsFixed(2)} credits on this purchase.',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF333333),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Container(
+          //   padding: const EdgeInsets.all(16),
+          //   decoration: BoxDecoration(
+          //     color: Colors.orange[50],
+          //     borderRadius: BorderRadius.circular(6),
+          //     border: Border.all(color: Colors.orange[200]!),
+          //   ),
+          //   child: Row(
+          //     children: [
+          //       Container(
+          //         width: 20,
+          //         height: 20,
+          //         decoration: const BoxDecoration(
+          //           color: Colors.orange,
+          //           shape: BoxShape.circle,
+          //         ),
+          //         child: const Icon(
+          //           Icons.currency_rupee,
+          //           color: Colors.white,
+          //           size: 12,
+          //         ),
+          //       ),
+          //       const SizedBox(width: 12),
+          //       Expanded(
+          //         child: Text(
+          //           'You will earn ₹${(product!.price * 0.07).toStringAsFixed(2)} credits on this purchase.',
+          //           style: const TextStyle(
+          //             fontSize: 14,
+          //             color: Color(0xFF333333),
+          //             fontWeight: FontWeight.w500,
+          //           ),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
 
-          const SizedBox(height: 24),
+//const SizedBox(height: 24),
 
           // Delivery Check Section
           Row(

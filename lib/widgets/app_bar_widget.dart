@@ -258,7 +258,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             context.go('/about');
                             break;
                           case 'contact':
-                            context.go('/contact');
+                            context.go('/contact-us');
                             break;
                           case 'search':
                             // Handle search
@@ -459,7 +459,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     'About', _isActive('/about'), () => context.go('/about')),
                 const SizedBox(width: 32),
                 _buildNavLink('Contact', _isActive('/contact'),
-                    () => context.go('/contact')),
+                    () => context.go('/contact-us')),
               ],
             ),
 
